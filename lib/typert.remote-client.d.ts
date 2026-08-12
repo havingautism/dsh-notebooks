@@ -2,18 +2,30 @@
 import type {
   TypeRTRemoteContribution,
 } from '@deepseek-ai/dsh-type-meta'
-import type { NotebookDeleteRequest, NotebookDeleteResult, NotebookEntry, NotebookListRequest, NotebookListResult, NotebookPutRequest } from '@deepseek-ai/dsh-notebooks/types'
+import type { NotebookAddSourceRequest, NotebookArtifactRequest, NotebookDeleteRequest, NotebookDeleteResult, NotebookEntry, NotebookGetRequest, NotebookListRequest, NotebookListResult, NotebookPutRequest, NotebookRemoveSourceRequest, NotebookRemoveSourceResult, NotebookSourceSelectionRequest, NotebookSummaryRequest } from '@deepseek-ai/dsh-notebooks/types'
 
 declare module '@deepseek-ai/dsh-type-meta' {
   interface TypeRTRemoteNamespace$6e6f7465626f6f6b73 {
+    addSource: (request: NotebookAddSourceRequest) => Promise<NotebookEntry>
     delete: (request: NotebookDeleteRequest) => Promise<NotebookDeleteResult>
+    get: (request: NotebookGetRequest) => Promise<NotebookEntry | null>
     list: (request: NotebookListRequest) => Promise<NotebookListResult>
     put: (request: NotebookPutRequest) => Promise<NotebookEntry>
+    removeSource: (request: NotebookRemoveSourceRequest) => Promise<NotebookRemoveSourceResult>
+    setArtifact: (request: NotebookArtifactRequest) => Promise<NotebookEntry>
+    setSourceSelection: (request: NotebookSourceSelectionRequest) => Promise<NotebookEntry>
+    setSummary: (request: NotebookSummaryRequest) => Promise<NotebookEntry>
   }
   interface TypeRTRemoteMap {
+    'notebooks/addSource': (request: NotebookAddSourceRequest) => Promise<NotebookEntry>
     'notebooks/delete': (request: NotebookDeleteRequest) => Promise<NotebookDeleteResult>
+    'notebooks/get': (request: NotebookGetRequest) => Promise<NotebookEntry | null>
     'notebooks/list': (request: NotebookListRequest) => Promise<NotebookListResult>
     'notebooks/put': (request: NotebookPutRequest) => Promise<NotebookEntry>
+    'notebooks/removeSource': (request: NotebookRemoveSourceRequest) => Promise<NotebookRemoveSourceResult>
+    'notebooks/setArtifact': (request: NotebookArtifactRequest) => Promise<NotebookEntry>
+    'notebooks/setSourceSelection': (request: NotebookSourceSelectionRequest) => Promise<NotebookEntry>
+    'notebooks/setSummary': (request: NotebookSummaryRequest) => Promise<NotebookEntry>
   }
   interface TypeRTRemoteNamespaceMap {
     'notebooks': TypeRTRemoteNamespace$6e6f7465626f6f6b73

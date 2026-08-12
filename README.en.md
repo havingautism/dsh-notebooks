@@ -1,62 +1,47 @@
-# 📓 dsh-notebooks · Notebooks
+# 📓 Notebooks
 
 English | [中文](README.md)
 
-> An independent cross-session notes plugin for DeepSeek Harness. This repository owns the model tools, durable storage, typed Remote API, and Notebooks Web conversation view.
-
-**Status** Preview · **Version** 0.1.0 · **Branch** `main`
+`@deepseek-ai/dsh-notebooks` brings Codemini-style durable notebooks to DSH. It provides storage, model tools, the generated `notebooks` Remote namespace, and a complete `随手记` Web workspace.
 
 ## ✨ Features
 
-- 📝 Create, search, update, and delete notes across sessions.
-- 🏷️ Filter by title, content substring, or normalized tag.
-- 🤖 Use the native `notebook_list`, `notebook_write`, and `notebook_delete` model tools.
-- 💬 Browse, create, and delete notes in the built-in Notebooks conversation view.
-- 💾 Persist through the active DSH profile's `storage-domain` backend instead of browser-local state.
+- 🗂️ Browse a searchable, filterable library in grid or list mode.
+- 📝 Create durable notes with normalized tags and a manual source.
+- 🌐 Attach URL references, captured Web text, conversation answers, and uploaded plain-text or Markdown documents.
+- ✅ Select the exact sources used for an overview or Studio output.
+- 🧠 Save evidence-grounded summaries, Mermaid mind maps, and Markdown reports.
+- 🗑️ Update sources or delete notebooks directly from the workspace.
 
 ## 🚀 Quick Start
 
-Install this plugin by itself for the complete notebook capability:
+Install this bundle by itself:
 
 ```sh
 dsh plugin --profile web add github:dsh-external/dsh-notebooks
 dsh web
 ```
 
-The Web app gains a Notebooks conversation view. Ask the model to save a note tagged `ui` and `replay`, then start another session and search for `replay`. The second session reading the first note verifies the installation.
+Open the `随手记` tab. The patch provides explicit limits for entries, content, sources, and Studio artifacts; a later profile or home patch may replace the complete `notebooks` config.
 
-## 🛠️ Tools and API
+## Model Experience
 
-| Tool | Purpose |
-| --- | --- |
-| `notebook_list` | List all notes or filter by text and tag |
-| `notebook_write` | Create a note; an existing `id` updates it while preserving creation time |
-| `notebook_delete` | Delete by `id`; a missing entry returns `deleted: false` |
+### Native tools
 
-The Web client accesses the same records through the package-owned `remote.notebooks.list/put/delete` namespace.
+#### What the model sees
 
-## 🧩 Independence
+The model sees `notebook_list`, `notebook_write`, `notebook_add_source`, `notebook_set_summary`, `notebook_set_artifact`, and `notebook_delete`. A source Tool call carries already-read source text; the plugin never claims that saving a URL alone fetched its page.
 
-Notebooks has no Deep Research or Ultra UI dependency. Installing or removing either plugin does not change notebook storage, model tools, Remote methods, or its conversation view.
+#### Token effect
 
-## 💾 Data and Configuration
+Fixed schema cost applies while the tools are visible. Result cost is proportional to matching summaries and content within configured limits.
 
-The default patch permits 10,000 notes and 50,000 content characters per note. Location, transaction behavior, and backups follow the profile's `storage-domain` backend. Nothing is stored in the Git checkout or browser Local Storage.
+#### KV Cache effect
 
-## 🧪 Verification and Development
+The six static schemas extend the request header. Stored notebook content enters a request only through Tool results, so durable mutations do not rewrite an existing request prefix.
 
-Installable `lib/` artifacts are committed. Focused checks in the private Harness source workspace:
+## Known Limitations and Deferred Work
 
-```sh
-pnpm exec tsc -b tsconfig.host.json tsconfig.client.json --pretty false
-pnpm exec vitest run packages/extensions/notebooks/tests/notebooks.spec.ts
-pnpm --filter @deepseek-ai/dsh-notebooks run bundle
-```
-
-Run `npm run verify` for a quick syntax check of this repository's committed artifacts.
-
-## ⚠️ Known Limitations
-
-- The current release uses one global storage domain without project collections or sharing permissions.
-- Text search is bounded substring matching rather than ranked full-text search.
-- This is the standalone distribution of the corresponding extension developed in the private Harness source tree.
+- Browser upload currently extracts UTF-8 plain-text and Markdown files. PDF and DOCX extraction requires a composed attachment extractor and is not simulated with lossy browser text decoding.
+- The Web URL form saves a reference. The model should read the page with the composed Web capability and then call `notebook_add_source` with captured text.
+- Search uses bounded in-memory substring and exact-tag matching rather than ranked full-text retrieval.

@@ -4,3 +4,6 @@
       config:
         maxEntries: 10000
         maxContentChars: 50000
+        maxSourcesPerEntry: 100
+        maxSourceChars: 200000
+        maxArtifactChars: 200000
