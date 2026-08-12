@@ -1,0 +1,6 @@
+- insert:
+    - id: notebooks
+      name: '@deepseek-ai/dsh-notebooks'
+      config:
+        maxEntries: 10000
+        maxContentChars: 50000
