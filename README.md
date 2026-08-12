@@ -1,64 +1,68 @@
-# dsh-notebooks · 随手记
+# 📓 dsh-notebooks · 随手记
 
 [English](README.en.md) | 中文
 
-> DeepSeek Harness 的跨会话随手记插件。模型可以创建、检索、更新和删除笔记；数据进入 Harness 的 storage domain，并通过类型化 Remote API 提供给 Web UI。
+> DeepSeek Harness 的独立跨会话笔记插件。模型工具、持久存储、类型化 Remote API 和“随手记”Web 会话页都由本仓库自行提供。
 
 **状态** Preview · **版本** 0.1.0 · **分支** `main`
 
-## 特性
+## ✨ 特性
 
-- **跨会话持久化**：笔记跟随当前 DSH profile 的存储后端，不依赖浏览器本地状态。
-- **模型原生工具**：提供 `notebook_list`、`notebook_write`、`notebook_delete`。
-- **更新与检索**：支持标题、正文、标签；按正文子串或标签过滤。
-- **独立 Web Remote**：插件自行挂载 `remote.notebooks`，不要求修改 Harness 中央 Remote 清单。
-- **明确容量限制**：最大条目数和单条正文长度由 `cordis.patch.yml` 配置。
+- 📝 创建、检索、更新和删除跨会话笔记。
+- 🏷️ 按标题、正文子串或标准化标签筛选。
+- 🤖 提供 `notebook_list`、`notebook_write`、`notebook_delete` 三个模型原生工具。
+- 💬 自带“随手记”Web 会话页，可浏览、新建和删除笔记。
+- 💾 使用当前 DSH profile 的 `storage-domain` 后端，不依赖浏览器本地状态。
 
-## 快速开始
+## 🚀 快速开始
+
+只安装本插件即可使用完整笔记能力：
 
 ```sh
 dsh plugin --profile web add github:dsh-external/dsh-notebooks
 dsh web
 ```
 
-打开 Web 后可以直接要求模型：
+打开 Web 后会出现“随手记”会话页。也可以直接要求模型：
 
 ```text
 请把“工具 UI 必须只依赖已记录的 call/result”记到随手记，标签为 ui 和 replay。
 ```
 
-再开启一个会话并询问“查找带 replay 标签的随手记”。看到 `notebook_write` 和 `notebook_list` 调用，且第二个会话能读到第一条笔记，即安装成功。
+新开会话并检索 `replay` 标签；第二个会话能读取第一条笔记，即安装成功。
 
-如果希望在侧栏直接浏览和编辑笔记，再安装 [dsh-ultra-ui](https://github.com/dsh-external/dsh-ultra-ui)。
-
-## 工具
+## 🛠️ 工具与 API
 
 | 工具 | 用途 |
 | --- | --- |
-| `notebook_list` | 列出全部笔记，或按正文/标题子串、标签筛选 |
-| `notebook_write` | 新建笔记；传入现有 `id` 时更新，同时保留创建时间 |
+| `notebook_list` | 列出全部笔记，或按文本与标签筛选 |
+| `notebook_write` | 新建笔记；传入现有 `id` 时更新并保留创建时间 |
 | `notebook_delete` | 按 `id` 删除；不存在时返回 `deleted: false` |
 
-Web 插件还可以通过 `remote.notebooks.list/put/delete` 使用同一份数据。
+Web 端通过同一插件挂载的 `remote.notebooks.list/put/delete` 访问相同数据。
 
-## 数据与配置
+## 🧩 独立性
 
-默认补丁允许 10000 条笔记，单条正文最多 50000 字符。数据由 profile 已组合的 `storage-domain` 后端保存，因此具体文件位置、事务语义和备份策略跟随该 profile。插件不会把笔记写进 Git 仓库或浏览器 Local Storage。
+Notebooks 不依赖 Deep Research 或 Ultra UI。安装或卸载另外两个插件不会改变笔记存储、模型工具、Remote 方法或“随手记”会话页。
 
-## 验证与开发
+## 💾 数据与配置
 
-仓库提交了可直接安装的 `lib/` 发布产物；源码所在 DSH 工作区使用以下聚焦检查：
+默认补丁允许 10000 条笔记，单条正文最多 50000 字符。具体文件位置、事务语义和备份策略由 profile 的 `storage-domain` 后端决定；插件不会把笔记写入 Git 仓库或浏览器 Local Storage。
+
+## 🧪 验证与开发
+
+本仓库提交了可直接安装的 `lib/` 发布产物。私有 Harness 源码工作区使用以下聚焦检查：
 
 ```sh
 pnpm exec tsc -b tsconfig.host.json tsconfig.client.json --pretty false
-pnpm exec vitest run packages/extensions/deepresearch/tests/extensions.spec.ts
-pnpm --filter @deepseek-ai/dsh-notebooks bundle -- --env.DSH_BUILD_FACE=client
+pnpm exec vitest run packages/extensions/notebooks/tests/notebooks.spec.ts
+pnpm --filter @deepseek-ai/dsh-notebooks run bundle
 ```
 
-对本仓已提交产物做快速语法检查：`npm run verify`。
+对本仓已提交产物运行 `npm run verify` 可做快速语法检查。
 
-## 已知限制
+## ⚠️ 已知限制
 
-- 当前是全局 storage domain，没有项目级集合、共享权限或全文相关性排序。
-- 标签匹配不区分大小写；正文检索是有界内存子串匹配。
-- 本仓是 Harness 私有主仓中对应扩展包的独立分发仓库。
+- 当前使用一个全局 storage domain，没有项目级集合或共享权限。
+- 正文搜索是有界子串匹配，不提供全文相关性排序。
+- 本仓库是 Harness 私有主仓对应扩展包的独立分发仓库。

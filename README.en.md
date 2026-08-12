@@ -1,58 +1,62 @@
-# dsh-notebooks · Notebooks
+# 📓 dsh-notebooks · Notebooks
 
 English | [中文](README.md)
 
-> Cross-session notes for DeepSeek Harness. The model can create, search, update, and delete notes; records live in the Harness storage domain and are exposed to Web UI plugins through a typed Remote API.
+> An independent cross-session notes plugin for DeepSeek Harness. This repository owns the model tools, durable storage, typed Remote API, and Notebooks Web conversation view.
 
 **Status** Preview · **Version** 0.1.0 · **Branch** `main`
 
-## Features
+## ✨ Features
 
-- **Durable across sessions**: records follow the active DSH profile's storage backend.
-- **Native model tools**: `notebook_list`, `notebook_write`, and `notebook_delete`.
-- **Update and search**: titles, content, tags, substring filtering, and exact tag filtering.
-- **Self-contained Web Remote**: the plugin mounts `remote.notebooks` without a central Harness Remote edit.
-- **Explicit limits**: capacity and per-entry content limits live in `cordis.patch.yml`.
+- 📝 Create, search, update, and delete notes across sessions.
+- 🏷️ Filter by title, content substring, or normalized tag.
+- 🤖 Use the native `notebook_list`, `notebook_write`, and `notebook_delete` model tools.
+- 💬 Browse, create, and delete notes in the built-in Notebooks conversation view.
+- 💾 Persist through the active DSH profile's `storage-domain` backend instead of browser-local state.
 
-## Quick start
+## 🚀 Quick Start
+
+Install this plugin by itself for the complete notebook capability:
 
 ```sh
 dsh plugin --profile web add github:dsh-external/dsh-notebooks
 dsh web
 ```
 
-Ask the model to save a note tagged `ui` and `replay`, then start another session and list notes tagged `replay`. Seeing `notebook_write` and `notebook_list`, with the second session reading the first note, verifies the installation.
+The Web app gains a Notebooks conversation view. Ask the model to save a note tagged `ui` and `replay`, then start another session and search for `replay`. The second session reading the first note verifies the installation.
 
-Install [dsh-ultra-ui](https://github.com/dsh-external/dsh-ultra-ui) to browse the same records in a dedicated Web tab.
-
-## Tools
+## 🛠️ Tools and API
 
 | Tool | Purpose |
 | --- | --- |
-| `notebook_list` | List all notes or filter by title/content substring and tag |
+| `notebook_list` | List all notes or filter by text and tag |
 | `notebook_write` | Create a note; an existing `id` updates it while preserving creation time |
 | `notebook_delete` | Delete by `id`; a missing entry returns `deleted: false` |
 
-Web plugins use the same data through `remote.notebooks.list/put/delete`.
+The Web client accesses the same records through the package-owned `remote.notebooks.list/put/delete` namespace.
 
-## Data and configuration
+## 🧩 Independence
 
-The patch permits 10,000 notes and 50,000 content characters per note. Data is owned by the profile's `storage-domain` backend, so location, transaction behavior, and backups follow that profile. Nothing is stored in the Git checkout or browser Local Storage.
+Notebooks has no Deep Research or Ultra UI dependency. Installing or removing either plugin does not change notebook storage, model tools, Remote methods, or its conversation view.
 
-## Verification and development
+## 💾 Data and Configuration
 
-Installable `lib/` artifacts are committed. Focused checks in the DSH source workspace:
+The default patch permits 10,000 notes and 50,000 content characters per note. Location, transaction behavior, and backups follow the profile's `storage-domain` backend. Nothing is stored in the Git checkout or browser Local Storage.
+
+## 🧪 Verification and Development
+
+Installable `lib/` artifacts are committed. Focused checks in the private Harness source workspace:
 
 ```sh
 pnpm exec tsc -b tsconfig.host.json tsconfig.client.json --pretty false
-pnpm exec vitest run packages/extensions/deepresearch/tests/extensions.spec.ts
-pnpm --filter @deepseek-ai/dsh-notebooks bundle -- --env.DSH_BUILD_FACE=client
+pnpm exec vitest run packages/extensions/notebooks/tests/notebooks.spec.ts
+pnpm --filter @deepseek-ai/dsh-notebooks run bundle
 ```
 
-Run `npm run verify` to syntax-check this repository's committed artifacts.
+Run `npm run verify` for a quick syntax check of this repository's committed artifacts.
 
-## Known limitations
+## ⚠️ Known Limitations
 
-- The first release uses one global storage domain; it has no project collections or sharing permissions.
-- Tag matching is case-insensitive, while text search is bounded substring matching rather than ranked full-text search.
+- The current release uses one global storage domain without project collections or sharing permissions.
+- Text search is bounded substring matching rather than ranked full-text search.
 - This is the standalone distribution of the corresponding extension developed in the private Harness source tree.
