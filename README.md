@@ -18,7 +18,7 @@
 单独安装本组合包：
 
 ```sh
-dsh plugin --profile web add github:dsh-external/dsh-notebooks
+dsh plugin --profile web add github:havingautism/dsh-notebooks
 dsh web
 ```
 

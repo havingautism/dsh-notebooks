@@ -18,7 +18,7 @@ English | [中文](README.md)
 Install this bundle by itself:
 
 ```sh
-dsh plugin --profile web add github:dsh-external/dsh-notebooks
+dsh plugin --profile web add github:havingautism/dsh-notebooks
 dsh web
 ```
 
