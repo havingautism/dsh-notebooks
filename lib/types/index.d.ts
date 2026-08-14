@@ -5,7 +5,7 @@
  */
 import { Context, Service } from '@deepseek-ai/cordis';
 import s from '@deepseek-ai/schemastery';
-import { GatewayService } from '@deepseek-ai/dsh-type-meta';
+import { TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import type { NotebookAddSourceRequest, NotebookArtifactRequest, NotebookDeleteRequest, NotebookDeleteResult, NotebookEntry, NotebookGetRequest, NotebookListRequest, NotebookListResult, NotebookPutRequest, NotebookRemoveSourceRequest, NotebookRemoveSourceResult, NotebookSourceSelectionRequest, NotebookSummaryRequest } from './types.ts';
 export type * from './types.ts';
 export { NotebookId, NotebookSourceId } from './types.ts';
@@ -29,7 +29,7 @@ declare module '@deepseek-ai/cordis' {
     }
 }
 /** Durable notebook service. */
-export declare class NotebooksService extends GatewayService {
+export declare class NotebooksService extends TypertRemoteService {
     private readonly config;
     static inject: string[];
     /** Loader validation for deployment-varying notebook limits. */

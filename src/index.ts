@@ -9,7 +9,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import s from '@deepseek-ai/schemastery'
 import type { KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { GatewayService, Remote } from '@deepseek-ai/dsh-type-meta'
+import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { notebooksDomainSpec } from './spec.ts'
 import { NotebookId, NotebookSourceId } from './types.ts'
 import type {
@@ -75,7 +75,7 @@ const ENTRY_SCHEMA = {
 } as const
 
 /** Durable notebook service. */
-export class NotebooksService extends GatewayService {
+export class NotebooksService extends TypertRemoteService {
   static inject = ['storageDomain', 'tools']
 
   /** Loader validation for deployment-varying notebook limits. */

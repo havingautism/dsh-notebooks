@@ -8,7 +8,7 @@ import Tools from '@deepseek-ai/dsh-tools'
 import Storage from '@deepseek-ai/dsh-storage'
 import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
 import * as StorageJson from '@deepseek-ai/dsh-storage-json'
-import { remoteMethods } from '@deepseek-ai/dsh-type-meta'
+import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
 import Notebooks, { NotebookId } from '../src/index.ts'
 
 const contexts: Context[] = []
@@ -42,7 +42,7 @@ async function harness(root?: string): Promise<Context> {
 describe('Notebooks extension', () => {
   it('publishes its complete independent Remote and Tool surface', async () => {
     const ctx = await harness()
-    expect(ctx.notebooks.typertGateway.namespace).toBe('notebooks')
+    expect(ctx.notebooks.typertRemote.namespace).toBe('notebooks')
     expect(remoteMethods(ctx.notebooks).map(marker => marker.method)).toEqual([
       'list', 'get', 'put', 'addSource', 'setSourceSelection', 'removeSource',
       'setSummary', 'setArtifact', 'delete',
