@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-notebooks",
-  "description": "Independent cross-session notebooks with model tools, typed Remote API, and Web view",
-  "version": "0.1.0",
+  "description": "Cross-session notebooks with model tools, typed Remote API, and a Web workspace",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

@@ -34,22 +34,28 @@ function remoteValue<T>(operation: string, result: RemoteResult<T>): T {
  */
 export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
   const disposeRemote = await ctx.remote.$mount(notebooksRemote)
-  ctx.slots.inject('conversation.view', () => ctx.slots.register({
-    name: 'conversation.view',
-    id: 'notebooks',
-    order: 20,
-    label: () => '随手记',
-    inject: (): NotebooksViewApi => ({
-      list: async query => remoteValue('notebooks.list', await ctx.remote.notebooks.list({ ...(query === '' ? {} : { query }) })).entries,
-      get: async id => remoteValue('notebooks.get', await ctx.remote.notebooks.get({ id })),
-      put: async (request: NotebookPutRequest): Promise<NotebookEntry> => remoteValue('notebooks.put', await ctx.remote.notebooks.put(request)),
-      addSource: async request => remoteValue('notebooks.addSource', await ctx.remote.notebooks.addSource(request)),
-      selectSources: async (id, sourceIds) => remoteValue('notebooks.setSourceSelection', await ctx.remote.notebooks.setSourceSelection({ id, sourceIds })),
-      removeSource: async (id, sourceId): Promise<NotebookRemoveSourceResult> => remoteValue('notebooks.removeSource', await ctx.remote.notebooks.removeSource({ id, sourceId })),
-      setSummary: async (id, summary) => remoteValue('notebooks.setSummary', await ctx.remote.notebooks.setSummary({ id, summary })),
-      setArtifact: async request => remoteValue('notebooks.setArtifact', await ctx.remote.notebooks.setArtifact(request)),
-      delete: async (id): Promise<NotebookDeleteResult> => remoteValue('notebooks.delete', await ctx.remote.notebooks.delete({ id })),
-    }),
-  }, NotebooksView))
-  return disposeRemote
+  const view = ctx.inject(['remote.notebooks'], (remoteCtx) => {
+    remoteCtx.slots.inject('conversation.view', () => remoteCtx.slots.register({
+      name: 'conversation.view',
+      id: 'notebooks',
+      order: 20,
+      label: () => '随手记',
+      inject: (): NotebooksViewApi => ({
+        list: async query => remoteValue('notebooks.list', await remoteCtx.remote.notebooks.list({ ...(query === '' ? {} : { query }) })).entries,
+        get: async id => remoteValue('notebooks.get', await remoteCtx.remote.notebooks.get({ id })),
+        put: async (request: NotebookPutRequest): Promise<NotebookEntry> => remoteValue('notebooks.put', await remoteCtx.remote.notebooks.put(request)),
+        addSource: async request => remoteValue('notebooks.addSource', await remoteCtx.remote.notebooks.addSource(request)),
+        selectSources: async (id, sourceIds) => remoteValue('notebooks.setSourceSelection', await remoteCtx.remote.notebooks.setSourceSelection({ id, sourceIds })),
+        removeSource: async (id, sourceId): Promise<NotebookRemoveSourceResult> => remoteValue('notebooks.removeSource', await remoteCtx.remote.notebooks.removeSource({ id, sourceId })),
+        setSummary: async (id, summary) => remoteValue('notebooks.setSummary', await remoteCtx.remote.notebooks.setSummary({ id, summary })),
+        setArtifact: async request => remoteValue('notebooks.setArtifact', await remoteCtx.remote.notebooks.setArtifact(request)),
+        delete: async (id): Promise<NotebookDeleteResult> => remoteValue('notebooks.delete', await remoteCtx.remote.notebooks.delete({ id })),
+      }),
+    }, NotebooksView))
+  })
+  await view
+  return async () => {
+    await view.dispose()
+    await disposeRemote()
+  }
 }

@@ -15,14 +15,14 @@
 
 ## 🚀 快速开始
 
-单独安装本组合包：
+安装插件：
 
 ```sh
 dsh plugin --profile web add github:havingautism/dsh-notebooks
 dsh web
 ```
 
-打开“随手记”标签页。组合包 patch 显式设置条目、正文、来源和 Studio 产物上限；后续 profile 或 home patch 可以替换完整的 `notebooks` config。
+打开“随手记”标签页。插件 patch 显式设置条目、正文、来源和 Studio 产物上限；后续 profile 或 home patch 可以替换完整的 `notebooks` config。
 
 ## 模型体验
 

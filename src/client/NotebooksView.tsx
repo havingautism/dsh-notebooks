@@ -31,7 +31,10 @@ export function NotebooksView(api: ConvViewProps & InjectFace<NotebooksViewApi>)
     } catch (cause) { setError(messageOf(cause)) }
   }, [api])
 
-  useEffect(() => { void refresh('') }, [refresh])
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void refresh(query) }, query === '' ? 0 : 250)
+    return () => { window.clearTimeout(timer) }
+  }, [query, refresh])
 
   const visible = useMemo(() => {
     const filtered = filter === 'all' ? [...entries] : entries.filter(entry => entry.sources.some(source => source.kind === filter))
@@ -46,29 +49,20 @@ export function NotebooksView(api: ConvViewProps & InjectFace<NotebooksViewApi>)
   if (selected !== null) return <NotebookWorkspace entry={selected} api={api} onChange={updateSelected} onBack={() => { setSelected(null) }} onDelete={async () => { await api.delete(selected.id); setSelected(null); await refresh(query) }} error={error} setError={setError} />
 
   return (
-    <div className={css.shell} data-conversation-composer-overlay="">
-      <header className={css.libraryHeader}>
-        <div><p className={css.eyebrow}>NOTEBOOKS</p><h2 className={css.heading}>我的笔记</h2><p className={css.subtitle}>把链接、文档和灵感整理成可追问的资料库。</p></div>
-        <button className={css.primaryButton} type="button" onClick={() => { setComposerOpen(true) }}>＋ 新建笔记</button>
-      </header>
+    <div className={css.shell} data-conversation-composer-overlay=""><div className={css.content}>
       <div className={css.toolbar}>
         <div className={css.filters} aria-label="笔记筛选">
-          {([['all', '全部'], ['manual', '我的笔记'], ['url', '网页资料'], ['document', '文档']] as const).map(([id, label]) => <button key={id} className={filter === id ? css.activeChip : css.chip} type="button" onClick={() => { setFilter(id) }}>{label}</button>)}
+          {([['all', '全部'], ['manual', '我的笔记'], ['url', '网页资料'], ['document', '文档']] as const).map(([id, label]) => <button key={id} className={filter === id ? css.activeChip : css.chip} type="button" aria-current={filter === id ? 'page' : undefined} onClick={() => { setFilter(id) }}>{label}</button>)}
         </div>
         <div className={css.toolbarActions}>
-          <input className={css.search} value={query} onChange={event => { setQuery(event.target.value) }} onKeyDown={event => { if (event.key === 'Enter') void refresh(query) }} placeholder="搜索笔记" />
-          <select className={css.select} value={sort} onChange={event => { setSort(event.target.value as 'recent' | 'title') }}><option value="recent">最近更新</option><option value="title">按标题</option></select>
-          <button className={css.iconButton} type="button" aria-label="网格视图" data-active={viewMode === 'grid'} onClick={() => { setViewMode('grid') }}>▦</button>
-          <button className={css.iconButton} type="button" aria-label="列表视图" data-active={viewMode === 'list'} onClick={() => { setViewMode('list') }}>☷</button>
+          <input className={css.search} value={query} onChange={event => { setQuery(event.target.value) }} placeholder="搜索笔记" aria-label="搜索笔记" />
+          <select className={css.select} value={sort} onChange={event => { setSort(event.target.value as 'recent' | 'title') }} aria-label="笔记排序"><option value="recent">最近更新</option><option value="title">按标题</option></select>
+          <div className={css.viewToggle}><button className={css.iconButton} type="button" aria-label="网格视图" aria-pressed={viewMode === 'grid'} data-active={viewMode === 'grid'} onClick={() => { setViewMode('grid') }}>▦</button><button className={css.iconButton} type="button" aria-label="列表视图" aria-pressed={viewMode === 'list'} data-active={viewMode === 'list'} onClick={() => { setViewMode('list') }}>☷</button></div>
+          <button className={css.primaryButton} type="button" onClick={() => { setError(null); setComposerOpen(true) }}>＋ 新建笔记</button>
         </div>
       </div>
-      {error === null ? null : <div className={css.error} role="alert">{error}</div>}
-      <section className={viewMode === 'grid' ? css.notebookGrid : css.notebookList} aria-label="笔记列表">
-        {visible.map((entry, index) => <NotebookCard key={entry.id} entry={entry} index={index} list={viewMode === 'list'} onOpen={() => { setSelected(entry) }} onDelete={() => { void api.delete(entry.id).then(() => refresh(query), cause => { setError(messageOf(cause)) }) }} />)}
-      </section>
-      {visible.length === 0 ? <button className={css.empty} type="button" onClick={() => { setComposerOpen(true) }}>还没有匹配的笔记。创建第一条笔记。</button> : null}
-      {composerOpen ? <NotebookComposer busy={busy} setBusy={setBusy} onClose={() => { setComposerOpen(false) }} onCreate={async payload => { const entry = await api.put(payload); setComposerOpen(false); await refresh(query); setSelected(entry) }} setError={setError} /> : null}
-    </div>
+      <section className={css.library}><header className={css.libraryTitle}><div><h2>我的笔记</h2><p>{visible.length} 条笔记</p></div></header>{error === null || composerOpen ? null : <div className={css.error} role="alert">{error}</div>}{visible.length === 0 ? <div className={css.emptyState}><span aria-hidden="true">📝</span><strong>{query === '' ? '还没有笔记' : '没有匹配的笔记'}</strong><p>{query === '' ? '记录灵感，或整理链接和文档。' : '试试其他关键词或清除搜索条件。'}</p>{query === '' ? <button className={css.primaryButton} type="button" onClick={() => { setComposerOpen(true) }}>＋ 新建笔记</button> : null}</div> : <div className={viewMode === 'grid' ? css.notebookGrid : css.notebookList} aria-label="笔记列表">{viewMode === 'grid' ? <button className={css.createCard} type="button" onClick={() => { setComposerOpen(true) }}><span>＋</span><strong>新建笔记</strong></button> : null}{visible.map((entry, index) => <NotebookCard key={entry.id} entry={entry} index={index} list={viewMode === 'list'} onOpen={() => { setSelected(entry) }} onDelete={() => { void api.delete(entry.id).then(() => refresh(query), cause => { setError(messageOf(cause)) }) }} />)}</div>}</section>
+    </div>{composerOpen ? <NotebookComposer busy={busy} error={error} setBusy={setBusy} onClose={() => { if (!busy) setComposerOpen(false) }} onCreate={async payload => { const entry = await api.put(payload); setComposerOpen(false); await refresh(query); setSelected(entry) }} setError={setError} /> : null}</div>
   )
 }
 
@@ -82,7 +76,7 @@ function NotebookCard({ entry, index, list, onOpen, onDelete }: { entry: Noteboo
   </article>
 }
 
-function NotebookComposer({ busy, setBusy, onClose, onCreate, setError }: { busy: boolean; setBusy: (value: boolean) => void; onClose: () => void; onCreate: (request: NotebookPutRequest) => Promise<void>; setError: (value: string | null) => void }) {
+function NotebookComposer({ busy, error, setBusy, onClose, onCreate, setError }: { busy: boolean; error: string | null; setBusy: (value: boolean) => void; onClose: () => void; onCreate: (request: NotebookPutRequest) => Promise<void>; setError: (value: string | null) => void }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [tags, setTags] = useState('')
@@ -90,7 +84,7 @@ function NotebookComposer({ busy, setBusy, onClose, onCreate, setError }: { busy
     event.preventDefault(); if (busy || content.trim() === '') return; setBusy(true); setError(null)
     void onCreate({ title: title.trim() || `📝 ${content.trim().slice(0, 32)}`, content, tags: parseTags(tags) }).catch(cause => { setError(messageOf(cause)) }).finally(() => { setBusy(false) })
   }
-  return <div className={css.modalBackdrop} role="presentation"><form className={css.modal} onSubmit={submit}><div className={css.modalHeader}><div><p className={css.eyebrow}>NEW NOTEBOOK</p><h3>创建笔记</h3></div><button className={css.iconButton} type="button" onClick={onClose}>×</button></div><p className={css.hint}>先写一段背景，创建后可继续添加多个链接、PDF、文档或聊天回答。</p><input className={css.input} value={title} onChange={event => { setTitle(event.target.value) }} placeholder="标题（可选，可含 emoji）" /><textarea className={css.textarea} value={content} onChange={event => { setContent(event.target.value) }} placeholder="写下背景、目标或第一条资料…" /><input className={css.input} value={tags} onChange={event => { setTags(event.target.value) }} placeholder="标签，用逗号分隔" /><div className={css.modalFooter}><button className={css.secondaryButton} type="button" onClick={onClose}>取消</button><button className={css.primaryButton} type="submit" disabled={busy}>{busy ? '创建中…' : '创建笔记'}</button></div></form></div>
+  return <div className={css.modalBackdrop} role="presentation"><form className={css.modal} role="dialog" aria-modal="true" aria-labelledby="new-notebook-title" onSubmit={submit}><div className={css.modalHeader}><div className={css.modalHeading}><span aria-hidden="true">📝</span><div><h3 id="new-notebook-title">创建笔记</h3><p>记录想法，稍后继续补充来源和产物。</p></div></div><button className={css.iconButton} type="button" aria-label="关闭" disabled={busy} onClick={onClose}>×</button></div><div className={css.modalBody}><label>标题<input className={css.input} value={title} onChange={event => { setTitle(event.target.value) }} placeholder="可选，可包含 emoji" /></label><label>内容 <b>必填</b><textarea autoFocus className={css.textarea} value={content} onChange={event => { setContent(event.target.value) }} placeholder="写下背景、目标或第一条资料…" /></label><label>标签<input className={css.input} value={tags} onChange={event => { setTags(event.target.value) }} placeholder="用逗号分隔" /></label>{error === null ? null : <div className={css.modalError} role="alert">{error}</div>}</div><div className={css.modalFooter}><span>创建后可继续添加链接和文档</span><div><button className={css.secondaryButton} type="button" disabled={busy} onClick={onClose}>取消</button><button className={css.primaryButton} type="submit" disabled={busy || content.trim() === ''}>{busy ? '创建中…' : '创建笔记'}</button></div></div></form></div>
 }
 
 function NotebookWorkspace({ entry, api, onChange, onBack, onDelete, error, setError }: { entry: NotebookEntry; api: NotebooksViewApi; onChange: (entry: NotebookEntry) => void; onBack: () => void; onDelete: () => Promise<void>; error: string | null; setError: (value: string | null) => void }) {
