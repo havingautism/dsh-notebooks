@@ -116,6 +116,60 @@ export function isAbsoluteHttpUrl(value: string): boolean {
   return /^https?:\/\//iu.test(value.trim())
 }
 
+const JINA_TIMEOUT_MS = 8_000
+
+function jinaSignal(userSignal?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(JINA_TIMEOUT_MS)
+  if (userSignal === undefined) return timeout
+  const any = (AbortSignal as { any?: (signals: AbortSignal[]) => AbortSignal }).any
+  return any === undefined ? timeout : any([userSignal, timeout])
+}
+
+/**
+ * Pull a readable title and body out of a web-fetch HTML fallback.
+ * Jina already returns markdown; this only runs when the fallback stored a page.
+ */
+export function extractHtmlArticle(html: string, sourceUrl = ''): { title: string; content: string } {
+  const raw = html.trim()
+  if (raw === '' || !/<(?:html|head|body|article|div|meta|title)\b/i.test(raw)) {
+    return { title: '', content: raw }
+  }
+  const ogTitle = raw.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)/i)?.[1]
+    ?? raw.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)?.[1]
+  const titleTag = raw.match(/<title[^>]*>([^<]+)/i)?.[1]
+  const title = decodeHtmlEntities((ogTitle ?? titleTag ?? '').trim())
+  const article = raw.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1]
+    ?? raw.match(/class=["'][^"']*article-content[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section|article)>/i)?.[1]
+    ?? raw.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1]
+    ?? raw
+  const content = decodeHtmlEntities(article
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim())
+  return { title: title || hostnameOf(sourceUrl), content }
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+}
+
+function hostnameOf(value: string): string {
+  try { return new URL(value).hostname.replace(/^www\./u, '') } catch { return value }
+}
+
 /** Jina Reader proxy URL for one source page, matching Codemini scrapbook. */
 export function jinaReaderUrl(sourceUrl: string): string {
   return `https://r.jina.ai/http://${sourceUrl.trim().replace(/^https?:\/\//iu, '')}`
@@ -184,7 +238,7 @@ export async function fetchNotebookUrl(
   try {
     const response = await fetchImpl(jinaReaderUrl(url), {
       headers: { 'user-agent': options.userAgent ?? 'dsh-notebooks scrapbook-fetch' },
-      ...(options.signal === undefined ? {} : { signal: options.signal }),
+      signal: jinaSignal(options.signal),
     })
     if (response.ok) {
       const text = (await response.text()).trim()
@@ -199,10 +253,12 @@ export async function fetchNotebookUrl(
   const web = options.web
   if (web === undefined) throw new Error('notebooks: web fetch is not available')
   const result = await web.fetch({ url }, options.signal)
-  const content = result.body.content.trim()
-  let title = ''
-  try { title = new URL(result.url || url).hostname.replace(/^www\./u, '') } catch { title = url }
-  return { title, content }
+  const extracted = extractHtmlArticle(result.body.content.trim(), result.url || url)
+  let title = extracted.title
+  if (title === '') {
+    try { title = new URL(result.url || url).hostname.replace(/^www\./u, '') } catch { title = url }
+  }
+  return { title, content: extracted.content }
 }
 
 /** Clip generation input and mark truncation. */

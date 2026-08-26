@@ -1,6 +1,5 @@
 /** Conversation node for a clickable notebook badge under citing user bubbles. */
 import type { ConversationNodeDefinition } from '@deepseek-ai/dsh-client-runtime/client';
-import type { ContentBlock } from '@deepseek-ai/dsh-llm';
 import { NotebookId } from '../types.ts';
 export declare const NOTEBOOKS_PLUGIN_ID = "@deepseek-ai/dsh-notebooks";
 /** Renderer payload for one notebook cite chip. */
@@ -21,10 +20,7 @@ interface NotebookCiteState extends NotebookCiteData {
 export declare function citeFromMessageEvent(event: {
     readonly type: string;
     readonly seq?: number;
-    readonly data?: {
-        readonly source?: unknown;
-        readonly content?: readonly ContentBlock[];
-    };
+    readonly data?: unknown;
 }): NotebookCiteData | null;
 /** Fold citing notebook context into one anchored chip under the user bubble. */
 export declare const notebookCiteDefinition: ConversationNodeDefinition<NotebookCiteState>;

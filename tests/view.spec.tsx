@@ -30,6 +30,39 @@ describe('Notebooks view', () => {
     await waitFor(() => { expect(create).toHaveBeenCalledOnce() })
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ content: '今天的灵感' }))
   })
+
+  it('shows fetch progress then streams the overview draft', async () => {
+    const entry = {
+      id: 'note-1',
+      title: 'Aliyun',
+      content: '',
+      summary: '',
+      tags: [],
+      sourceType: 'url',
+      sourceUrl: 'https://example.test/a',
+      fetchStatus: 'pending_fetch',
+      sources: [{
+        id: 'source-1', kind: 'url', name: 'example.test', url: 'https://example.test/a',
+        mimeType: null, content: '', selected: true, status: 'pending_fetch',
+        sessionId: null, messageId: null, createdAt: 1,
+      }],
+      artifacts: [],
+      latestJob: {
+        id: 'job-1', kind: 'summary', status: 'running', stage: 'fetch',
+        partialText: '1/1 example.test', errorText: '', updatedAt: 2,
+      },
+      createdAt: 1,
+      updatedAt: 2,
+    }
+    const api = {
+      list: vi.fn(async () => [entry]),
+      get: vi.fn(async () => entry),
+      subscribeProgress: vi.fn(() => () => undefined),
+    } as unknown as NotebooksViewApi
+
+    render(<NotebooksView t={t} notebookId="note-1" {...api} />)
+    expect(await screen.findByText('正在抓取来源… 1/1 example.test')).toBeTruthy()
+  })
 })
 
 describe('Notebooks composer picker', () => {

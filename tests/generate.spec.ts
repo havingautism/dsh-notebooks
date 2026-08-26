@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  fetchNotebookUrl, jinaReaderUrl, parseJinaReaderResponse,
+  extractHtmlArticle, fetchNotebookUrl, jinaReaderUrl, parseJinaReaderResponse,
 } from '../src/generate.ts'
 
 describe('Jina Reader helpers', () => {
@@ -47,5 +47,20 @@ describe('Jina Reader helpers', () => {
     const page = await fetchNotebookUrl('https://example.com/post', { fetchImpl, web })
     expect(page.content).toBe('Fallback body')
     expect(page.title).toBe('example.com')
+  })
+
+  it('extracts title and article text from an HTML fallback page', () => {
+    const extracted = extractHtmlArticle(`
+      <html><head><title>developer.aliyun.com</title>
+      <meta property="og:title" content="Real article title" />
+      </head><body>
+      <nav>Skip me</nav>
+      <article class="article-content"><p>First paragraph.</p><p>Second paragraph.</p></article>
+      </body></html>
+    `, 'https://developer.aliyun.com/article/1')
+    expect(extracted.title).toBe('Real article title')
+    expect(extracted.content).toContain('First paragraph.')
+    expect(extracted.content).not.toContain('Skip me')
+    expect(extracted.content).not.toContain('<p>')
   })
 })

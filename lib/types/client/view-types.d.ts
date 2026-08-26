@@ -20,6 +20,6 @@ export interface NotebooksViewApi {
     }) => Promise<NotebookEntry>;
     readonly candidates: (query: string) => Promise<readonly NotebookMentionCandidate[]>;
     readonly delete: (id: NotebookId) => Promise<NotebookDeleteResult>;
-    readonly subscribeProgress: (listener: (entry: NotebookEntry) => void) => () => void;
+    readonly subscribeProgress?: (listener: (entry: NotebookEntry) => void) => () => void;
 }
 //# sourceMappingURL=view-types.d.ts.map

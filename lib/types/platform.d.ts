@@ -1,9 +1,15 @@
 /** Mount shared DSH sqlite/fetch once, then route this plugin's domain onto them. */
 import type { Context } from '@deepseek-ai/cordis';
+/** Shared sqlite filename for notebooks and deepresearch domains. */
+export declare const SHARED_SQLITE_FILENAME = "dsh.sqlite";
 /** Resolve `$DSH_HOME`, defaulting to `~/.dsh`. */
 export declare function resolveDshHome(env?: NodeJS.ProcessEnv): string;
-/** Default sqlite file when this plugin is the one that mounts the backend. */
+/** Canonical sqlite file both product plugins mount when the host has none. */
+export declare function defaultSharedSqlitePath(env?: NodeJS.ProcessEnv): string;
+/** @deprecated Use {@link defaultSharedSqlitePath}; kept for callers that still name the notebooks file. */
 export declare function defaultNotebooksSqlitePath(env?: NodeJS.ProcessEnv): string;
+/** Leftover plugin-named sqlite from before the shared-file cutover. */
+export declare function legacyNotebooksSqlitePath(sqlitePath: string): string;
 /** Register the sqlite backend when the host has not already done so. */
 export declare function ensureSqliteBackend(ctx: Context, path: string): Promise<void>;
 /** Register the HTTP fetch provider when `ctx.web` exists and has none. */

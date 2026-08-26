@@ -127,9 +127,17 @@ export function NotebooksView({ t, notebookId, onSelectNotebook, onClose, ...api
 
   const updateSelected = useCallback((entry: NotebookEntry) => {
     const next = hydrateNotebook(entry)
-    setSelected(current => current?.id === next.id && current.updatedAt === next.updatedAt ? current : next)
+    setSelected(current => current?.id === next.id && current.updatedAt === next.updatedAt
+      && current.latestJob?.partialText === next.latestJob?.partialText
+      && current.latestJob?.stage === next.latestJob?.stage
+      ? current : next)
     setEntries(current => current.map(item => item.id === next.id ? next : item))
   }, [])
+
+  useEffect(() => {
+    const unsubscribe = api.subscribeProgress?.(latest => { updateSelected(hydrateNotebook(latest)) })
+    return () => { unsubscribe?.() }
+  }, [api, updateSelected])
 
   if (notebookId !== undefined && notebookId !== null && selected === null && notebookLoading) {
     return <div className={css.shell}><div className={css.content}><div className={css.notebookLoading} role="status"><IconLoading className={css.spinner} size={16} /><span>{t('workspace.loading')}</span></div></div></div>
@@ -186,13 +194,18 @@ export function NotebooksView({ t, notebookId, onSelectNotebook, onClose, ...api
 
 function NotebookCard({ entry, index, list, t, onOpen, onDelete }: { entry: NotebookEntry; index: number; list: boolean; t: Translate; onOpen: () => void; onDelete: () => void }) {
   const [emoji, title] = splitEmoji(entry.title)
-  return <article className={css.notebookCard} data-list={list || undefined} style={{ '--card-tint': CARD_TONES[index % CARD_TONES.length] } as React.CSSProperties}>
+  const job = entry.latestJob
+  const busy = job !== null && (job.status === 'pending' || job.status === 'running')
+  const fetching = busy && job.kind === 'summary' && job.stage === 'fetch'
+  return <article className={css.notebookCard} data-list={list || undefined} data-busy={busy || undefined} style={{ '--card-tint': CARD_TONES[index % CARD_TONES.length] } as React.CSSProperties}>
     <button className={css.cardOpen} type="button" onClick={onOpen} aria-label={t('card.openAria', { title: entry.title })} />
     <div className={css.cardEmoji}>{emoji || sourceEmoji(entry)}</div>
     <div className={css.cardInfo}>
       <h3>{title}</h3>
-      <p>{entry.summary || entry.content}</p>
-      <span>{t('card.sources', { count: entry.sources.length, date: formatDate(entry.updatedAt) })}</span>
+      <p>{busy ? (fetching ? t('card.fetching') : t('card.summarizing')) : (entry.summary || entry.content)}</p>
+      <span>{busy
+        ? <><IconLoading className={css.spinner} size={11} />{fetching ? t('overview.fetching', { detail: job.partialText }) : t('overview.summarizing')}</>
+        : t('card.sources', { count: entry.sources.length, date: formatDate(entry.updatedAt) })}</span>
     </div>
     <button className={css.deleteButton} type="button" aria-label={t('workspace.delete')} onClick={event => { event.stopPropagation(); onDelete() }}><IconX size={15} /></button>
   </article>
@@ -276,18 +289,6 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
   const [expandMindmap, setExpandMindmap] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  const seenUpdatedAt = useRef(entry.updatedAt)
-  seenUpdatedAt.current = entry.updatedAt
-  const applyLatest = useCallback((latest: NotebookEntry) => {
-    if (latest.id !== entry.id || latest.updatedAt === seenUpdatedAt.current) return
-    onChange(latest)
-  }, [onChange, entry.id])
-  useEffect(() => {
-    let active = true
-    const unsubscribe = api.subscribeProgress(latest => { if (active) applyLatest(latest) })
-    return () => { active = false; unsubscribe() }
-  }, [api.subscribeProgress, applyLatest])
-
   const run = useCallback(async (operation: () => Promise<NotebookEntry>) => {
     setBusy(true)
     setError(null)
@@ -320,11 +321,14 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
 
   const job = entry.latestJob
   const summarizing = job !== null && job.kind === 'summary' && (job.status === 'pending' || job.status === 'running')
+  const fetching = summarizing && job.stage === 'fetch'
   const generatingStudio = job !== null && job.kind === studioKind && (job.status === 'pending' || job.status === 'running')
   const artifact = entry.artifacts.find(item => item.kind === studioKind)
-  const summaryText = summarizing && job.partialText.trim() !== '' ? job.partialText : entry.summary
+  const summaryDraft = summarizing && !fetching ? job.partialText : ''
+  const summaryText = summaryDraft.trim() !== '' ? summaryDraft : entry.summary
   const studioText = generatingStudio && job.partialText.trim() !== '' ? job.partialText : artifact?.content ?? ''
   const viewing = entry.sources.find(source => source.id === viewingSourceId) ?? null
+  const jobFailed = job !== null && job.status === 'failed' && job.kind === 'summary'
 
   return <div className={css.workspace}>
     <header className={css.workspaceHeader}>
@@ -365,14 +369,19 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
         {viewing === null ? <>
           <div className={css.paneHeader}>
             <div><h3>{t('overview.title')}</h3><p>{t('overview.hint')}</p></div>
-            <button className={css.primaryButton} type="button" disabled={busy || summarizing} onClick={() => { void run(() => api.summarize(entry.id)) }}>
-              {summarizing ? <IconLoading className={css.spinner} size={14} /> : null}
-              {summarizing ? t('overview.summarizing') : t('overview.resummarize')}
+            <button className={css.iconButton} type="button" disabled={busy || summarizing} aria-label={t('overview.resummarize')} title={t('overview.resummarize')} onClick={() => { void run(() => api.summarize(entry.id)) }}>
+              <IconLoading className={summarizing ? css.spinner : undefined} size={15} />
             </button>
           </div>
+          {summarizing ? <div className={css.progress} role="status">
+            <span className={css.progressBar} />
+            <IconLoading className={css.spinner} size={14} />
+            <span>{fetching ? t('overview.fetching', { detail: job.partialText }) : t('overview.summarizing')}</span>
+          </div> : null}
+          {jobFailed && !summarizing ? <div className={css.jobError} role="alert">{t('overview.failed', { error: job.errorText || t('overview.empty') })}</div> : null}
           {summaryText.trim() === ''
-            ? <div className={css.emptyPane}>{summarizing ? t('overview.summarizing') : t('overview.empty')}</div>
-            : <article className={css.markdownDocument}><MarkdownText text={summaryText} streaming={summarizing} /></article>}
+            ? <div className={css.emptyPane}>{summarizing ? null : t('overview.empty')}</div>
+            : <article className={css.markdownDocument} data-streaming={summarizing && !fetching || undefined}><MarkdownText text={summaryText} streaming={summarizing && !fetching} /></article>}
         </> : <>
           <div className={css.paneHeader}>
             <div><h3>{t('source.original')}</h3><p>{viewing.name}</p></div>
@@ -389,18 +398,26 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
       <aside className={css.studioPane} data-mobile={mobilePane === 'studio' || undefined}>
         <div className={css.paneHeader}><h3>{t('studio.title')}</h3></div>
         <div className={css.studioTabs}>
-          {(['mindmap', 'report'] as const).map(kind => <button key={kind} className={studioKind === kind ? css.activeChip : css.chip} type="button" onClick={() => { setStudioKind(kind) }}>{t(kind === 'mindmap' ? 'studio.mindmap' : 'studio.report')}</button>)}
+          {(['mindmap', 'report'] as const).map(kind => <button key={kind} className={studioKind === kind ? css.studioTabActive : css.studioTab} type="button" onClick={() => { setStudioKind(kind) }}>{t(kind === 'mindmap' ? 'studio.mindmap' : 'studio.report')}</button>)}
         </div>
-        <button className={css.primaryButton} type="button" disabled={busy || generatingStudio} onClick={() => { void run(() => api.generateStudio(entry.id, studioKind)) }}>
-          {generatingStudio ? <IconLoading className={css.spinner} size={14} /> : null}
-          {generatingStudio ? t('studio.generating') : t('studio.generate')}
-        </button>
+        {generatingStudio ? <div className={css.progress} role="status">
+          <span className={css.progressBar} />
+          <IconLoading className={css.spinner} size={14} />
+          <span>{t('studio.generating')}</span>
+        </div> : null}
         {studioText.trim() === ''
-          ? <p className={css.hint}>{t('studio.empty')}</p>
+          ? <div className={css.studioEmpty}>
+              <strong>{studioKind === 'mindmap' ? t('studio.emptyMindmap') : t('studio.emptyReport')}</strong>
+              <p>{t('studio.empty')}</p>
+            </div>
           : <div className={css.artifactPreview}>
-              {studioKind === 'mindmap' ? <button className={css.secondaryButton} type="button" onClick={() => { setExpandMindmap(true) }}>{t('studio.expand')}</button> : null}
+              {studioKind === 'mindmap' ? <button className={css.ghostButton} type="button" onClick={() => { setExpandMindmap(true) }}>{t('studio.expand')}</button> : null}
               <article className={css.markdownDocument}><MarkdownText text={studioText} streaming={generatingStudio} /></article>
             </div>}
+        <button className={css.studioGenerate} type="button" disabled={busy || generatingStudio || summarizing} onClick={() => { void run(() => api.generateStudio(entry.id, studioKind)) }}>
+          {generatingStudio ? <IconLoading className={css.spinner} size={14} /> : <IconPlus size={14} />}
+          {generatingStudio ? t('studio.generating') : t('studio.generate')}
+        </button>
       </aside>
     </div>
     {expandMindmap && studioText.trim() !== '' ? <div className={css.confirmBackdrop} role="presentation" onClick={() => { setExpandMindmap(false) }}>

@@ -36,6 +36,8 @@ export type NotebooksKey =
   | 'empty.hintNoMatch'
   | 'card.openAria'
   | 'card.sources'
+  | 'card.summarizing'
+  | 'card.fetching'
   | 'composer.title'
   | 'composer.subtitle'
   | 'composer.closeAria'
@@ -67,12 +69,16 @@ export type NotebooksKey =
   | 'overview.title'
   | 'overview.hint'
   | 'overview.empty'
+  | 'overview.fetching'
   | 'overview.summarizing'
   | 'overview.resummarize'
+  | 'overview.failed'
   | 'studio.title'
   | 'studio.mindmap'
   | 'studio.report'
   | 'studio.empty'
+  | 'studio.emptyMindmap'
+  | 'studio.emptyReport'
   | 'studio.generate'
   | 'studio.generating'
   | 'studio.expand'
@@ -134,6 +140,8 @@ export const zh: Record<NotebooksKey, string> = {
   'empty.hintNoMatch': '试试其他关键词或清除搜索条件。',
   'card.openAria': '打开笔记：{title}',
   'card.sources': '{count} 个来源 · {date}',
+  'card.summarizing': '总结中',
+  'card.fetching': '抓取中',
   'composer.title': '创建笔记',
   'composer.subtitle': '记录想法，稍后继续补充来源和产物。',
   'composer.closeAria': '关闭',
@@ -165,12 +173,16 @@ export const zh: Record<NotebooksKey, string> = {
   'overview.title': '综合总结',
   'overview.hint': '基于当前选中的来源整理',
   'overview.empty': '还没有综合总结。',
+  'overview.fetching': '正在抓取来源… {detail}',
   'overview.summarizing': '正在生成综合总结…',
   'overview.resummarize': '重新总结',
+  'overview.failed': '总结失败：{error}',
   'studio.title': 'Studio',
   'studio.mindmap': '思维导图',
   'studio.report': '报告',
   'studio.empty': '基于选中来源生成内容。',
+  'studio.emptyMindmap': '从选中来源生成思维导图。',
+  'studio.emptyReport': '从选中来源生成报告。',
   'studio.generate': '生成',
   'studio.generating': '生成中…',
   'studio.expand': '放大思维导图',
@@ -226,6 +238,8 @@ export const en: Record<NotebooksKey, string> = {
   'empty.hintNoMatch': 'Try another keyword or clear the search.',
   'card.openAria': 'Open note: {title}',
   'card.sources': '{count} sources · {date}',
+  'card.summarizing': 'Summarizing',
+  'card.fetching': 'Fetching',
   'composer.title': 'Create note',
   'composer.subtitle': 'Write an idea, then add sources and Studio later.',
   'composer.closeAria': 'Close',
@@ -257,12 +271,16 @@ export const en: Record<NotebooksKey, string> = {
   'overview.title': 'Overview',
   'overview.hint': 'Synthesized from the selected sources',
   'overview.empty': 'No overview yet.',
+  'overview.fetching': 'Fetching sources… {detail}',
   'overview.summarizing': 'Generating overview…',
   'overview.resummarize': 'Resummarize',
+  'overview.failed': 'Overview failed: {error}',
   'studio.title': 'Studio',
   'studio.mindmap': 'Mind map',
   'studio.report': 'Report',
   'studio.empty': 'Generate from the selected sources.',
+  'studio.emptyMindmap': 'Generate a mind map from the selected sources.',
+  'studio.emptyReport': 'Generate a report from the selected sources.',
   'studio.generate': 'Generate',
   'studio.generating': 'Generating…',
   'studio.expand': 'Expand mind map',

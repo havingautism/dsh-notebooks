@@ -32,6 +32,8 @@ export type NotebookArtifactKind = 'mindmap' | 'report'
 export type NotebookJobKind = 'summary' | 'mindmap' | 'report'
 /** Lifecycle of one host generation job. */
 export type NotebookJobStatus = 'pending' | 'running' | 'completed' | 'failed'
+/** Host-visible stage while a summary job is running. */
+export type NotebookJobStage = 'fetch' | 'generate'
 
 /** One source attached to a notebook. */
 export interface NotebookSource {
@@ -60,6 +62,7 @@ export interface NotebookJob {
   readonly id: string
   readonly kind: NotebookJobKind
   readonly status: NotebookJobStatus
+  readonly stage: NotebookJobStage
   readonly partialText: string
   readonly errorText: string
   readonly updatedAt: number

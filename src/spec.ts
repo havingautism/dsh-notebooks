@@ -31,6 +31,7 @@ export const notebookJobSchema = z.object({
   id: z.string(),
   kind: z.enum(['summary', 'mindmap', 'report']),
   status: z.enum(['pending', 'running', 'completed', 'failed']),
+  stage: z.enum(['fetch', 'generate']).default('generate'),
   partialText: z.string().default(''),
   errorText: z.string().default(''),
   updatedAt: z.number(),

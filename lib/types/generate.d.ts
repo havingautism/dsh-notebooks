@@ -25,6 +25,14 @@ export declare function entryKindFromSources(sources: readonly NotebookSource[])
 export declare function buildAskContext(entry: NotebookEntry, summary: string): string;
 /** Whether a URL can be fetched as a notebook source. */
 export declare function isAbsoluteHttpUrl(value: string): boolean;
+/**
+ * Pull a readable title and body out of a web-fetch HTML fallback.
+ * Jina already returns markdown; this only runs when the fallback stored a page.
+ */
+export declare function extractHtmlArticle(html: string, sourceUrl?: string): {
+    title: string;
+    content: string;
+};
 /** Jina Reader proxy URL for one source page, matching Codemini scrapbook. */
 export declare function jinaReaderUrl(sourceUrl: string): string;
 /** Parsed Jina Reader markdown: article title plus cleaned body. */

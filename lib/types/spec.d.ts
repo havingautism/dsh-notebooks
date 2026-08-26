@@ -16,9 +16,9 @@ export declare const notebookSourceSchema: z.ZodObject<{
     content: z.ZodDefault<z.ZodString>;
     selected: z.ZodDefault<z.ZodBoolean>;
     status: z.ZodDefault<z.ZodEnum<{
-        failed: "failed";
         ready: "ready";
         pending_fetch: "pending_fetch";
+        failed: "failed";
     }>>;
     sessionId: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     messageId: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -42,11 +42,15 @@ export declare const notebookJobSchema: z.ZodObject<{
         summary: "summary";
     }>;
     status: z.ZodEnum<{
+        failed: "failed";
         pending: "pending";
         running: "running";
         completed: "completed";
-        failed: "failed";
     }>;
+    stage: z.ZodDefault<z.ZodEnum<{
+        fetch: "fetch";
+        generate: "generate";
+    }>>;
     partialText: z.ZodDefault<z.ZodString>;
     errorText: z.ZodDefault<z.ZodString>;
     updatedAt: z.ZodNumber;
@@ -67,9 +71,9 @@ export declare const notebookEntrySchema: z.ZodObject<{
     }>>;
     sourceUrl: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     fetchStatus: z.ZodDefault<z.ZodEnum<{
-        failed: "failed";
         ready: "ready";
         pending_fetch: "pending_fetch";
+        failed: "failed";
     }>>;
     sources: z.ZodArray<z.ZodObject<{
         id: z.ZodPipe<z.ZodString, z.ZodTransform<NotebookSourceId, string>>;
@@ -85,9 +89,9 @@ export declare const notebookEntrySchema: z.ZodObject<{
         content: z.ZodDefault<z.ZodString>;
         selected: z.ZodDefault<z.ZodBoolean>;
         status: z.ZodDefault<z.ZodEnum<{
-            failed: "failed";
             ready: "ready";
             pending_fetch: "pending_fetch";
+            failed: "failed";
         }>>;
         sessionId: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         messageId: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -109,11 +113,15 @@ export declare const notebookEntrySchema: z.ZodObject<{
             summary: "summary";
         }>;
         status: z.ZodEnum<{
+            failed: "failed";
             pending: "pending";
             running: "running";
             completed: "completed";
-            failed: "failed";
         }>;
+        stage: z.ZodDefault<z.ZodEnum<{
+            fetch: "fetch";
+            generate: "generate";
+        }>>;
         partialText: z.ZodDefault<z.ZodString>;
         errorText: z.ZodDefault<z.ZodString>;
         updatedAt: z.ZodNumber;

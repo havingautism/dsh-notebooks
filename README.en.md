@@ -23,7 +23,7 @@ dsh plugin --profile web add github:havingautism/dsh-notebooks
 dsh web
 ```
 
-Open `随手记` from the sidebar footer, or visit `#notes` / `#notes/<id>`. The patch enables the generation runner. At boot, if the host has no sqlite / HTTP fetch yet, this plugin mounts them; if they already exist, it reuses them. Notebook data lives in the `notebooks` domain on that sqlite backend. A notebooks-only install is enough — you do not need Deep Research or a hand-written yml.
+Open `随手记` from the sidebar footer, or visit `#notes` / `#notes/<id>`. The patch enables the generation runner. At boot, if the host has no sqlite / HTTP fetch yet, this plugin mounts them; if they already exist, it reuses them. Notebooks and Deep Research share one sqlite file (default `~/.dsh/storages/dsh.sqlite`) with separate domains (`notebooks` / `deepresearch`). A leftover `notebooks.sqlite` is imported on first launch. A notebooks-only install is enough — you do not need Deep Research or a hand-written yml. Do not YAML-`insert` `storage-sqlite` again.
 
 ## Web fetch and security
 

@@ -17,7 +17,8 @@
     "src/generate.ts",
     "src/mention.ts",
     "src/prompts.ts",
-    "src/platform.ts"
+    "src/platform.ts",
+    "src/migrate.ts"
   ],
   "references": [
     { "path": "../deepseek-harness/vendor/cordis" },

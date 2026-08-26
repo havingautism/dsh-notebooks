@@ -1,12 +1,15 @@
 /** Mount shared DSH sqlite/fetch once, then route this plugin's domain onto them. */
 
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-storage'
 import type {} from '@deepseek-ai/dsh-storage-domain'
 import * as StorageSqlite from '@deepseek-ai/dsh-storage-sqlite'
 import * as WebFetchHttp from '@deepseek-ai/dsh-web-fetch-http'
+
+/** Shared sqlite filename for notebooks and deepresearch domains. */
+export const SHARED_SQLITE_FILENAME = 'dsh.sqlite'
 
 /** Resolve `$DSH_HOME`, defaulting to `~/.dsh`. */
 export function resolveDshHome(env: NodeJS.ProcessEnv = process.env): string {
@@ -15,9 +18,19 @@ export function resolveDshHome(env: NodeJS.ProcessEnv = process.env): string {
   return configured.startsWith('~') ? join(homedir(), configured.slice(1)) : configured
 }
 
-/** Default sqlite file when this plugin is the one that mounts the backend. */
+/** Canonical sqlite file both product plugins mount when the host has none. */
+export function defaultSharedSqlitePath(env: NodeJS.ProcessEnv = process.env): string {
+  return join(resolveDshHome(env), 'storages', SHARED_SQLITE_FILENAME)
+}
+
+/** @deprecated Use {@link defaultSharedSqlitePath}; kept for callers that still name the notebooks file. */
 export function defaultNotebooksSqlitePath(env: NodeJS.ProcessEnv = process.env): string {
-  return join(resolveDshHome(env), 'storages', 'notebooks.sqlite')
+  return defaultSharedSqlitePath(env)
+}
+
+/** Leftover plugin-named sqlite from before the shared-file cutover. */
+export function legacyNotebooksSqlitePath(sqlitePath: string): string {
+  return join(dirname(sqlitePath), 'notebooks.sqlite')
 }
 
 function sqliteMounted(ctx: Context): boolean {

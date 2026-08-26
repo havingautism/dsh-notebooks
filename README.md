@@ -23,7 +23,7 @@ dsh plugin --profile web add github:havingautism/dsh-notebooks
 dsh web
 ```
 
-在左侧边栏底部打开「随手记」，或访问 `#notes` / `#notes/<id>`。插件 patch 启用 generation runner。启动时若宿主还没有 sqlite / HTTP fetch，会自行挂上；已经有了则共用，笔记数据在 sqlite 里占用独立的 `notebooks` 域。单独安装即可使用，不必先装深度研究或手写 yml。
+在左侧边栏底部打开「随手记」，或访问 `#notes` / `#notes/<id>`。插件 patch 启用 generation runner。启动时若宿主还没有 sqlite / HTTP fetch，会自行挂上；已经有了则共用。笔记和深度研究共用一份 sqlite（默认 `~/.dsh/storages/dsh.sqlite`），各自占用独立 domain（`notebooks` / `deepresearch`）。首次启动会把旧的 `notebooks.sqlite` 迁进这份库。单独安装即可使用，不必先装深度研究或手写 yml。不要再 YAML `insert` 一遍 `storage-sqlite`。
 
 ## 网页抓取与安全
 

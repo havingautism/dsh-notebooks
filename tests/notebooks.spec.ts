@@ -37,7 +37,7 @@ async function harness(root?: string): Promise<Context> {
     maxSourcesPerEntry: 3,
     maxSourceChars: 80,
     maxArtifactChars: 120,
-    sqlitePath: join(storageRoot, 'notebooks.sqlite'),
+    sqlitePath: join(storageRoot, 'dsh.sqlite'),
   })
   return ctx
 }
@@ -197,5 +197,38 @@ describe('Notebooks extension', () => {
     expect(ctx.storage.backend.names().filter(name => name === 'sqlite')).toEqual(['sqlite'])
     const created = await ctx.notebooks.put({ title: 'Shared', content: 'Existing backend' })
     expect(ctx.notebooks.get({ id: created.id })?.title).toBe('Shared')
+  })
+
+  it('imports leftover notebooks.sqlite into the shared file when the domain is empty', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-notebooks-migrate-'))
+    roots.push(root)
+    const pluginConfig = {
+      maxEntries: 2,
+      maxContentChars: 40,
+      maxSourcesPerEntry: 3,
+      maxSourceChars: 80,
+      maxArtifactChars: 120,
+    }
+    const first = new Context()
+    contexts.push(first)
+    await first.plugin(SystemPrompt)
+    await first.plugin(Tools)
+    await first.plugin(Storage)
+    await first.plugin(StorageJson, { root })
+    await first.plugin(StorageDomain, { backend: 'json' })
+    await first.plugin(Notebooks, { ...pluginConfig, sqlitePath: join(root, 'notebooks.sqlite') })
+    const created = await first.notebooks.put({ title: 'Legacy', content: 'From old file' })
+    await first.fiber.dispose()
+    contexts.splice(contexts.indexOf(first), 1)
+
+    const second = new Context()
+    contexts.push(second)
+    await second.plugin(SystemPrompt)
+    await second.plugin(Tools)
+    await second.plugin(Storage)
+    await second.plugin(StorageJson, { root })
+    await second.plugin(StorageDomain, { backend: 'json' })
+    await second.plugin(Notebooks, { ...pluginConfig, sqlitePath: join(root, 'dsh.sqlite') })
+    expect(second.notebooks.get({ id: created.id })?.content).toBe('From old file')
   })
 })

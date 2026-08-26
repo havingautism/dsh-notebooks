@@ -26,7 +26,8 @@ import {
 } from './generate.ts'
 import { formatNotebookMention, parseNotebookMentions } from './mention.ts'
 import { MINDMAP_SYSTEM_PROMPT, REPORT_SYSTEM_PROMPT, SUMMARY_SYSTEM_PROMPT } from './prompts.ts'
-import { defaultNotebooksSqlitePath, ensurePluginPlatform } from './platform.ts'
+import { defaultSharedSqlitePath, ensurePluginPlatform, legacyNotebooksSqlitePath } from './platform.ts'
+import { importLegacyNotebooksIfEmpty } from './migrate.ts'
 import { notebooksDomainSpec } from './spec.ts'
 import { NotebookId, NotebookSourceId } from './types.ts'
 import type {
@@ -45,8 +46,10 @@ export { notebookArtifactSchema, notebookEntrySchema, notebookJobSchema, noteboo
 export { formatNotebookMention, parseNotebookMentions } from './mention.ts'
 export {
   buildAskContext, combineSources, entryKindFromSources, fallbackChatTitle, fallbackTitle,
-  fetchNotebookUrl, jinaReaderUrl, parseGeneratedSummary, parseJinaReaderResponse, selectedSources,
+  fetchNotebookUrl, jinaReaderUrl, parseGeneratedSummary, parseJinaReaderResponse, extractHtmlArticle, selectedSources,
 } from './generate.ts'
+export { defaultSharedSqlitePath, defaultNotebooksSqlitePath, legacyNotebooksSqlitePath } from './platform.ts'
+export { importLegacyNotebooksIfEmpty } from './migrate.ts'
 
 /** Required notebook capacity, generation, and content policy. */
 export interface Config {
@@ -94,12 +97,13 @@ const ENTRY_SCHEMA = {
     artifacts: { type: 'array', required: true, items: { type: 'object', additionalProperties: false, properties: {
       kind: { type: 'string', required: true, enum: ['mindmap', 'report'] }, content: { type: 'string', required: true }, updatedAt: { type: 'number', required: true },
     } } },
-    latestJob: { required: true, oneOf: [{ type: 'null' }, {
+        latestJob: { required: true, oneOf: [{ type: 'null' }, {
       type: 'object', additionalProperties: false,
       properties: {
         id: { type: 'string', required: true },
         kind: { type: 'string', required: true, enum: ['summary', 'mindmap', 'report'] },
         status: { type: 'string', required: true, enum: ['pending', 'running', 'completed', 'failed'] },
+        stage: { type: 'string', required: true, enum: ['fetch', 'generate'] },
         partialText: { type: 'string', required: true },
         errorText: { type: 'string', required: true },
         updatedAt: { type: 'number', required: true },
@@ -140,11 +144,12 @@ export class NotebooksService extends TypertRemoteService {
   constructor(ctx: Context, private readonly config: Config) { super(ctx, 'notebooks') }
 
   protected async [Service.init](): Promise<void> {
-    const sqlitePath = this.config.sqlitePath?.trim() || defaultNotebooksSqlitePath()
+    const sqlitePath = this.config.sqlitePath?.trim() || defaultSharedSqlitePath()
     await ensurePluginPlatform(this.ctx, { domain: 'notebooks', sqlitePath })
     const domain = await this.ctx.storageDomain.open(notebooksDomainSpec)
     this.ctx.effect(() => () => domain.close(), 'notebooks.domainClose')
     this.table = domain.table('entries')
+    await importLegacyNotebooksIfEmpty(legacyNotebooksSqlitePath(sqlitePath), sqlitePath, this.table)
     this.registerTools()
     this.ctx.on('agent/pre-step', async ({ signal }, next): Promise<PreStepDecision> => {
       const decision = await next()
@@ -429,13 +434,21 @@ export class NotebooksService extends TypertRemoteService {
   private launchSummary(id: NotebookId): void {
     if (!this.config.runnerEnabled) return
     this.launchJob(id, 'summary', async (run, entry) => {
-      const fetched = await this.fetchPendingSources(entry, run.controller.signal)
+      const pending = entry.sources.filter(source => source.kind === 'url' && source.content === '' && source.url !== null)
+      if (pending.length > 0) {
+        await this.patchJob(id, run.jobId, {
+          status: 'running', stage: 'fetch',
+          partialText: pending[0]!.name || pending[0]!.url || '',
+        })
+      }
+      const fetched = await this.fetchPendingSources(entry, run.controller.signal, run.jobId)
+      await this.patchJob(id, run.jobId, { status: 'running', stage: 'generate', partialText: '' })
       const active = selectedSources(fetched)
       const contentText = truncateForGeneration(combineSources(active) || fetched.content)
       const generated = parseGeneratedSummary(await this.complete({
         run, system: SUMMARY_SYSTEM_PROMPT,
         user: ['Please write a detailed note summary for future follow-up questions.', contentText].join('\n\n'),
-        onDraft: text => { void this.patchJob(id, run.jobId, { status: 'running', partialText: text }) },
+        onDraft: text => { void this.patchJob(id, run.jobId, { status: 'running', stage: 'generate', partialText: text }) },
       }))
       const title = generated.title || fallbackTitle({ title: fetched.title, sourceUrl: fetched.sourceUrl, contentText })
       const summary = generated.summary
@@ -456,7 +469,7 @@ export class NotebooksService extends TypertRemoteService {
       const content = (await this.complete({
         run, system: kind === 'mindmap' ? MINDMAP_SYSTEM_PROMPT : REPORT_SYSTEM_PROMPT,
         user: studioPrompt(kind) + '\n\n' + sourceText,
-        onDraft: text => { void this.patchJob(id, run.jobId, { status: 'running', partialText: text }) },
+        onDraft: text => { void this.patchJob(id, run.jobId, { status: 'running', stage: 'generate', partialText: text }) },
       })).trim()
       if (content === '') throw new Error('Model returned empty content')
       this.assertLength(content, this.config.maxArtifactChars, `${kind} content`)
@@ -474,10 +487,13 @@ export class NotebooksService extends TypertRemoteService {
     const jobId = `notejob-${randomUUID()}`
     const run: ActiveGeneration = { jobId, controller: new AbortController() }
     this.activeJobs.set(id, run)
-    void this.update(id, entry => ({ ...entry, latestJob: job(jobId, kind, 'pending', '', '') }))
+    void this.update(id, entry => ({ ...entry, latestJob: job(jobId, kind, 'pending', '', '', kind === 'summary' ? 'fetch' : 'generate') }))
     run.promise = (async () => {
       try {
-        await this.update(id, entry => ({ ...entry, latestJob: job(jobId, kind, 'running', '', '') }))
+        await this.update(id, entry => ({
+          ...entry,
+          latestJob: job(jobId, kind, 'running', '', '', kind === 'summary' ? 'fetch' : 'generate'),
+        }))
         const entry = this.requireEntry(id)
         if (this.activeJobs.get(id)?.jobId !== jobId) return
         await work(run, entry)
@@ -491,11 +507,23 @@ export class NotebooksService extends TypertRemoteService {
     })()
   }
 
-  private async fetchPendingSources(entry: NotebookEntry, signal: AbortSignal): Promise<NotebookEntry> {
+  private async fetchPendingSources(entry: NotebookEntry, signal: AbortSignal, jobId?: string): Promise<NotebookEntry> {
     const sources = [...entry.sources]
+    const pendingIndexes = sources
+      .map((source, index) => source.kind === 'url' && source.content === '' && source.url !== null ? index : -1)
+      .filter(index => index >= 0)
+    let fetchedCount = 0
     for (let index = 0; index < sources.length; index += 1) {
       const source = sources[index]!
       if (source.kind !== 'url' || source.content !== '' || source.url === null) continue
+      fetchedCount += 1
+      if (jobId !== undefined) {
+        await this.patchJob(entry.id, jobId, {
+          status: 'running',
+          stage: 'fetch',
+          partialText: `${String(fetchedCount)}/${String(pendingIndexes.length)} ${source.name || source.url}`,
+        })
+      }
       try {
         const fetched = await this.fetchUrl(source.url, signal)
         sources[index] = {
@@ -684,8 +712,15 @@ function optionalText(value: string | undefined): string | null { const text = v
 function normalizeTags(tags: readonly string[]): string[] { return [...new Set(tags.map(tag => tag.trim()).filter(tag => tag !== ''))] }
 function searchableText(entry: NotebookEntry): string { return [entry.title, entry.content, entry.summary, ...entry.tags, ...entry.sources.flatMap(source => [source.name, source.url ?? '', source.content])].join('\n').toLocaleLowerCase() }
 function hostname(value: string): string { try { return new URL(value).hostname.replace(/^www\./u, '') } catch { return value || '网页资料' } }
-function job(id: string, kind: NotebookJobKind, status: NotebookJob['status'], partialText: string, errorText: string): NotebookJob {
-  return { id, kind, status, partialText, errorText, updatedAt: Date.now() }
+function job(
+  id: string,
+  kind: NotebookJobKind,
+  status: NotebookJob['status'],
+  partialText: string,
+  errorText: string,
+  stage: NotebookJob['stage'] = 'generate',
+): NotebookJob {
+  return { id, kind, status, stage, partialText, errorText, updatedAt: Date.now() }
 }
 function snapshot(entry: NotebookEntry): NotebookEntry {
   return Object.freeze({
@@ -722,23 +757,28 @@ function watchDraft(handle: AgentHandle, onDraft: (text: string) => void): () =>
     const next = text.trim()
     if (next === '' || next === last) return
     last = next
-    onDraft(next.slice(0, 4000))
+    onDraft(next.slice(0, 12000))
   }
   const emit = () => { push(streamed || lastAssistantText(handle)) }
   const schedule = () => {
     if (timer !== undefined) return
-    timer = setTimeout(() => { timer = undefined; emit() }, 400)
+    timer = setTimeout(() => { timer = undefined; emit() }, 80)
   }
   const ctx = handle.agent.ctx as { on?: (event: string, listener: (payload?: unknown) => void) => () => void } | undefined
   const offChunk = ctx?.on?.('assistant/chunk', payload => {
     const chunk = (payload as { chunk?: { type?: string; text?: string } } | undefined)?.chunk
-    if (chunk?.type === 'text-delta' && chunk.text) { streamed += chunk.text; schedule() }
+    if (chunk?.type === 'text-delta' && chunk.text) {
+      const first = streamed === ''
+      streamed += chunk.text
+      if (first) emit()
+      else schedule()
+    }
   })
   const offMessage = ctx?.on?.('assistant/message', payload => {
     const text = messageText((payload as { message?: { content?: unknown } } | undefined)?.message?.content)
     if (text !== '') { streamed = text; emit() }
   })
-  const poll = setInterval(emit, 600)
+  const poll = setInterval(emit, 200)
   emit()
   return () => {
     if (timer !== undefined) clearTimeout(timer)
