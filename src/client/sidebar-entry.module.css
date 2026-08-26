@@ -1,3 +1,11 @@
+/* Host footer-action list is `display: flex` with the default row direction, so
+   two plugins sit side by side and clip. The slot wrapper is `display: contents`,
+   so restyle the host seat to stack occupants above Settings. */
+:global([class*="footerActions"]:has([data-slot="sidebar.footer.action"])) {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .layer {
   position: relative;
   flex: none;
