@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  extractHtmlArticle, fetchNotebookUrl, jinaReaderUrl, parseJinaReaderResponse,
+  extractHtmlArticle, extractWebPageTitle, fetchNotebookUrl, jinaReaderUrl,
+  parseJinaReaderResponse, readableFetchText,
 } from '../src/generate.ts'
 
 describe('Jina Reader helpers', () => {
@@ -49,18 +50,26 @@ describe('Jina Reader helpers', () => {
     expect(page.title).toBe('example.com')
   })
 
-  it('extracts title and article text from an HTML fallback page', () => {
-    const extracted = extractHtmlArticle(`
-      <html><head><title>developer.aliyun.com</title>
+  it('extracts Codemini-style body text from an HTML fallback page', () => {
+    const html = `
+      <html><head><title>Real article title</title>
       <meta property="og:title" content="Real article title" />
       </head><body>
       <nav>Skip me</nav>
-      <article class="article-content"><p>First paragraph.</p><p>Second paragraph.</p></article>
+      <div class="article-content"><p>First paragraph.</p><p>Second paragraph.</p></div>
+      <article><p>Footer promo only</p></article>
       </body></html>
-    `, 'https://developer.aliyun.com/article/1')
+    `
+    expect(extractWebPageTitle(html)).toBe('Real article title')
+    const text = readableFetchText(html)
+    expect(text).toContain('First paragraph.')
+    expect(text).toContain('Second paragraph.')
+    expect(text).toContain('Skip me')
+    expect(text).toContain('Footer promo only')
+    expect(text).not.toContain('<p>')
+
+    const extracted = extractHtmlArticle(html, 'https://developer.aliyun.com/article/1')
     expect(extracted.title).toBe('Real article title')
-    expect(extracted.content).toContain('First paragraph.')
-    expect(extracted.content).not.toContain('Skip me')
-    expect(extracted.content).not.toContain('<p>')
+    expect(extracted.content).toBe(text)
   })
 })

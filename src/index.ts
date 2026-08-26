@@ -46,7 +46,8 @@ export { notebookArtifactSchema, notebookEntrySchema, notebookJobSchema, noteboo
 export { formatNotebookMention, parseNotebookMentions } from './mention.ts'
 export {
   buildAskContext, combineSources, entryKindFromSources, fallbackChatTitle, fallbackTitle,
-  fetchNotebookUrl, jinaReaderUrl, parseGeneratedSummary, parseJinaReaderResponse, extractHtmlArticle, selectedSources,
+  fetchNotebookUrl, jinaReaderUrl, parseGeneratedSummary, parseJinaReaderResponse,
+  extractHtmlArticle, extractWebPageTitle, readableFetchText, selectedSources,
 } from './generate.ts'
 export { defaultSharedSqlitePath, defaultNotebooksSqlitePath, legacyNotebooksSqlitePath } from './platform.ts'
 export { importLegacyNotebooksIfEmpty } from './migrate.ts'

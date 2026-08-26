@@ -25,6 +25,10 @@ export declare function entryKindFromSources(sources: readonly NotebookSource[])
 export declare function buildAskContext(entry: NotebookEntry, summary: string): string;
 /** Whether a URL can be fetched as a notebook source. */
 export declare function isAbsoluteHttpUrl(value: string): boolean;
+/** Codemini-aligned readable text: strip script/style/noscript, keep body text. */
+export declare function readableFetchText(body: string, maxChars?: number): string;
+/** Page title from HTML fallback, matching Codemini `webFetchPage` title extraction. */
+export declare function extractWebPageTitle(html: string, pageUrl?: string): string;
 /**
  * Pull a readable title and body out of a web-fetch HTML fallback.
  * Jina already returns markdown; this only runs when the fallback stored a page.

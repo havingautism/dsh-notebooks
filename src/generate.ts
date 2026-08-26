@@ -1,5 +1,6 @@
 /** Pure notebook generation helpers shared by the service and tests. */
 
+import { load } from 'cheerio'
 import type { NotebookArtifactKind, NotebookEntry, NotebookEntryKind, NotebookSource } from './types.ts'
 
 const TITLE_PATTERN = /^(?:#{1,6}\s*)?(?:\*\*)?Title(?:\*\*)?:\s*(?:\*\*)?\s*/i
@@ -116,13 +117,33 @@ export function isAbsoluteHttpUrl(value: string): boolean {
   return /^https?:\/\//iu.test(value.trim())
 }
 
-const JINA_TIMEOUT_MS = 8_000
+const MAX_FETCH_TEXT_CHARS = 200_000
 
-function jinaSignal(userSignal?: AbortSignal): AbortSignal {
-  const timeout = AbortSignal.timeout(JINA_TIMEOUT_MS)
-  if (userSignal === undefined) return timeout
-  const any = (AbortSignal as { any?: (signals: AbortSignal[]) => AbortSignal }).any
-  return any === undefined ? timeout : any([userSignal, timeout])
+function looksLikeHtml(value: string): boolean {
+  return /<(?:!doctype|html|head|body|script|style|div|article|main|section|p|meta|link)\b/i.test(value)
+}
+
+/** Codemini-aligned readable text: strip script/style/noscript, keep body text. */
+export function readableFetchText(body: string, maxChars = MAX_FETCH_TEXT_CHARS): string {
+  const raw = body.trim()
+  if (raw === '') return ''
+  if (!looksLikeHtml(raw)) return raw.slice(0, maxChars)
+  const $ = load(raw)
+  $('script, style, noscript').remove()
+  const extracted = String($('body').text() || $.root().text())
+    .replace(/[^\S\n]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return (extracted === '' ? raw : extracted).slice(0, maxChars)
+}
+
+/** Page title from HTML fallback, matching Codemini `webFetchPage` title extraction. */
+export function extractWebPageTitle(html: string, pageUrl = ''): string {
+  const raw = html.trim()
+  if (raw === '' || !looksLikeHtml(raw)) return hostnameOf(pageUrl)
+  const $ = load(raw)
+  const title = String($('title').first().text()).trim()
+  return decodeHtmlEntities(title) || hostnameOf(pageUrl)
 }
 
 /**
@@ -130,30 +151,10 @@ function jinaSignal(userSignal?: AbortSignal): AbortSignal {
  * Jina already returns markdown; this only runs when the fallback stored a page.
  */
 export function extractHtmlArticle(html: string, sourceUrl = ''): { title: string; content: string } {
-  const raw = html.trim()
-  if (raw === '' || !/<(?:html|head|body|article|div|meta|title)\b/i.test(raw)) {
-    return { title: '', content: raw }
+  return {
+    title: extractWebPageTitle(html, sourceUrl),
+    content: readableFetchText(html),
   }
-  const ogTitle = raw.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)/i)?.[1]
-    ?? raw.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)?.[1]
-  const titleTag = raw.match(/<title[^>]*>([^<]+)/i)?.[1]
-  const title = decodeHtmlEntities((ogTitle ?? titleTag ?? '').trim())
-  const article = raw.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1]
-    ?? raw.match(/class=["'][^"']*article-content[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section|article)>/i)?.[1]
-    ?? raw.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1]
-    ?? raw
-  const content = decodeHtmlEntities(article
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/h[1-6]>/gi, '\n\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim())
-  return { title: title || hostnameOf(sourceUrl), content }
 }
 
 function decodeHtmlEntities(value: string): string {
@@ -238,7 +239,7 @@ export async function fetchNotebookUrl(
   try {
     const response = await fetchImpl(jinaReaderUrl(url), {
       headers: { 'user-agent': options.userAgent ?? 'dsh-notebooks scrapbook-fetch' },
-      signal: jinaSignal(options.signal),
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
     })
     if (response.ok) {
       const text = (await response.text()).trim()
@@ -253,12 +254,13 @@ export async function fetchNotebookUrl(
   const web = options.web
   if (web === undefined) throw new Error('notebooks: web fetch is not available')
   const result = await web.fetch({ url }, options.signal)
-  const extracted = extractHtmlArticle(result.body.content.trim(), result.url || url)
-  let title = extracted.title
+  const html = result.body.content.trim()
+  const content = readableFetchText(html)
+  let title = extractWebPageTitle(html, result.url || url)
   if (title === '') {
     try { title = new URL(result.url || url).hostname.replace(/^www\./u, '') } catch { title = url }
   }
-  return { title, content: extracted.content }
+  return { title, content }
 }
 
 /** Clip generation input and mark truncation. */
