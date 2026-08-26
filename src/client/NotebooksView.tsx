@@ -8,7 +8,9 @@ import {
   IconRightUpOutline14 as IconExternalLink, MarkdownText,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { NotebookId, type NotebookArtifactKind, type NotebookCreateRequest, type NotebookEntry, type NotebookSource } from '../types.ts'
+import { parseMindmapTree } from '../studio-mermaid.ts'
 import { hydrateNotebook } from './hydrate.ts'
+import { MermaidMindmap } from './MermaidMindmap.tsx'
 import type { NotebooksKey } from './locales.ts'
 import type { NotebooksViewApi } from './view-types.ts'
 import css from './views.module.css'
@@ -332,19 +334,22 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
   const summarizing = !jobFailed && job !== null && job.kind === 'summary' && (job.status === 'pending' || job.status === 'running')
   const fetching = summarizing && job.stage === 'fetch'
   const generatingStudio = job !== null && job.kind === studioKind && (job.status === 'pending' || job.status === 'running')
+  const studioFailed = job !== null && job.status === 'failed' && job.kind === studioKind
   const artifact = entry.artifacts.find(item => item.kind === studioKind)
   const summaryDraft = summarizing && !fetching ? job.partialText : ''
   const summaryText = summaryDraft.trim() !== '' ? summaryDraft : entry.summary
   const studioText = generatingStudio && job.partialText.trim() !== '' ? job.partialText : artifact?.content ?? ''
+  const mindmapReady = studioKind === 'mindmap' && parseMindmapTree(studioText) !== null
   const viewing = entry.sources.find(source => source.id === viewingSourceId) ?? null
+  const jobLive = summarizing || generatingStudio
 
   useEffect(() => {
-    if (!summarizing) return
+    if (!jobLive) return
     const timer = window.setInterval(() => {
       void api.get(entry.id).then(next => { if (next !== null) onChange(next) }).catch(() => undefined)
     }, 2000)
     return () => { window.clearInterval(timer) }
-  }, [api, entry.id, onChange, summarizing])
+  }, [api, entry.id, onChange, jobLive])
 
   return <div className={css.workspace}>
     <header className={css.workspaceHeader}>
@@ -422,14 +427,17 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
           <IconLoading className={css.spinner} size={14} />
           <span>{t('studio.generating')}</span>
         </div> : null}
+        {studioFailed ? <div className={css.jobError} role="alert">{t('studio.failed', { error: job.errorText || t('studio.empty') })}</div> : null}
         {studioText.trim() === ''
           ? <div className={css.studioEmpty}>
               <strong>{studioKind === 'mindmap' ? t('studio.emptyMindmap') : t('studio.emptyReport')}</strong>
               <p>{t('studio.empty')}</p>
             </div>
           : <div className={css.artifactPreview}>
-              {studioKind === 'mindmap' ? <button className={css.ghostButton} type="button" onClick={() => { setExpandMindmap(true) }}>{t('studio.expand')}</button> : null}
-              <article className={css.markdownDocument}><MarkdownText text={studioText} streaming={generatingStudio} /></article>
+              {mindmapReady ? <button className={css.ghostButton} type="button" onClick={() => { setExpandMindmap(true) }}>{t('studio.expand')}</button> : null}
+              {studioKind === 'mindmap'
+                ? <MermaidMindmap text={studioText} invalidLabel={t('studio.mindmapInvalid')} />
+                : <article className={css.markdownDocument}><MarkdownText text={studioText} streaming={generatingStudio} /></article>}
             </div>}
         <button className={css.studioGenerate} type="button" disabled={busy || generatingStudio || summarizing} onClick={() => { void run(() => api.generateStudio(entry.id, studioKind)) }}>
           {generatingStudio ? <IconLoading className={css.spinner} size={14} /> : <IconPlus size={14} />}
@@ -437,10 +445,10 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
         </button>
       </aside>
     </div>
-    {expandMindmap && studioText.trim() !== '' ? <div className={css.confirmBackdrop} role="presentation" onClick={() => { setExpandMindmap(false) }}>
+    {expandMindmap && mindmapReady ? <div className={css.confirmBackdrop} role="presentation" onClick={() => { setExpandMindmap(false) }}>
       <div className={css.expandCard} role="dialog" aria-modal="true" aria-label={t('studio.mindmap')} onClick={event => { event.stopPropagation() }}>
         <header><h3>{t('studio.mindmap')}</h3><button className={css.iconButton} type="button" aria-label={t('composer.closeAria')} onClick={() => { setExpandMindmap(false) }}><IconX size={16} /></button></header>
-        <article className={css.markdownDocument}><MarkdownText text={studioText} /></article>
+        <article className={css.markdownDocument}><MermaidMindmap text={studioText} invalidLabel={t('studio.mindmapInvalid')} /></article>
       </div>
     </div> : null}
   </div>

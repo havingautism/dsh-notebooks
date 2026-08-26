@@ -16,7 +16,13 @@ export const SUMMARY_SYSTEM_PROMPT = [
 /** System prompt for a Mermaid mind map grounded in selected sources. */
 export const MINDMAP_SYSTEM_PROMPT = [
   'Create a concise Mermaid mindmap grounded only in the provided sources.',
-  'Return exactly one fenced mermaid block using Mermaid mindmap syntax.',
+  'Return exactly one fenced mermaid block using Mermaid mindmap syntax. Example:',
+  '```mermaid',
+  'mindmap',
+  '  Root',
+  '    Child',
+  '```',
+  'Output only that fence. Do not write analysis, plans, or explanations before or after it.',
   'Use a short root label and 2-4 levels. Keep node labels concise and avoid punctuation that breaks Mermaid.',
 ].join(' ')
 

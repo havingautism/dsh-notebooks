@@ -298,7 +298,7 @@ export function truncateForGeneration(text: string, maxChars = 12000): string {
 /** Resolve Studio system prompt text. */
 export function studioPrompt(kind: NotebookArtifactKind): string {
   return kind === 'mindmap'
-    ? 'Create a concise Mermaid mindmap grounded only in the provided sources. Return exactly one fenced mermaid block using Mermaid mindmap syntax. Use a short root label and 2-4 levels. Keep node labels concise and avoid punctuation that breaks Mermaid.'
+    ? 'Create a concise Mermaid mindmap grounded only in the provided sources. Return exactly one fenced mermaid block using Mermaid mindmap syntax. Output only that fence. Do not write analysis, plans, or explanations. Use a short root label and 2-4 levels. Keep node labels concise and avoid punctuation that breaks Mermaid.'
     : 'Write a polished research report grounded only in the provided sources. Use Markdown with an executive summary, key findings, evidence grouped by source, and conclusions. Call out disagreements or uncertainty instead of inventing facts.'
 }
 

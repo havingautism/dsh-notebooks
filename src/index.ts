@@ -27,6 +27,7 @@ import {
 import { formatNotebookMention, parseNotebookMentions } from './mention.ts'
 import { MINDMAP_SYSTEM_PROMPT, REPORT_SYSTEM_PROMPT, SUMMARY_SYSTEM_PROMPT } from './prompts.ts'
 import { lastAssistantText, watchDraft } from './assistant-text.ts'
+import { extractMermaidFence } from './studio-mermaid.ts'
 import { defaultSharedSqlitePath, ensurePluginPlatform, legacyNotebooksSqlitePath } from './platform.ts'
 import { importLegacyNotebooksIfEmpty } from './migrate.ts'
 import { notebooksDomainSpec } from './spec.ts'
@@ -50,6 +51,7 @@ export {
   fetchNotebookUrl, jinaReaderUrl, parseGeneratedSummary, parseJinaReaderResponse,
   extractHtmlArticle, extractWebPageTitle, readableFetchText, selectedSources,
 } from './generate.ts'
+export { extractMermaidFence, mermaidSourceFromArtifact, parseMindmapTree } from './studio-mermaid.ts'
 export { defaultSharedSqlitePath, defaultNotebooksSqlitePath, legacyNotebooksSqlitePath } from './platform.ts'
 export { importLegacyNotebooksIfEmpty } from './migrate.ts'
 
@@ -475,11 +477,35 @@ export class NotebooksService extends TypertRemoteService {
     this.launchJob(id, kind, async (run, entry) => {
       const sourceText = combineSources(selectedSources(entry))
       if (sourceText === '') throw new Error('No selected source content is available')
-      const content = (await this.complete({
+      const user = studioPrompt(kind) + '\n\n' + sourceText
+      const nudge = kind === 'mindmap' ? MINDMAP_RETRY_NUDGE : REPORT_RETRY_NUDGE
+      let content = (await this.complete({
         run, system: kind === 'mindmap' ? MINDMAP_SYSTEM_PROMPT : REPORT_SYSTEM_PROMPT,
-        user: studioPrompt(kind) + '\n\n' + sourceText,
-        onDraft: text => { void this.patchJob(id, run.jobId, { status: 'running', stage: 'generate', partialText: text }) },
+        user, nudge,
+        accept: kind === 'mindmap' ? text => extractMermaidFence(text) !== '' : text => text.trim() !== '',
+        onDraft: text => {
+          void this.patchJob(id, run.jobId, {
+            status: 'running',
+            stage: 'generate',
+            partialText: kind === 'mindmap' ? extractMermaidFence(text) : text,
+          })
+        },
       })).trim()
+      if (kind === 'mindmap') {
+        let mermaid = extractMermaidFence(content)
+        if (mermaid === '') {
+          content = (await this.complete({
+            run, system: MINDMAP_SYSTEM_PROMPT,
+            user: `${MINDMAP_RETRY_NUDGE}\n\n${sourceText}`,
+            nudge: MINDMAP_RETRY_NUDGE,
+            accept: text => extractMermaidFence(text) !== '',
+            onDraft: text => { void this.patchJob(id, run.jobId, { status: 'running', stage: 'generate', partialText: extractMermaidFence(text) }) },
+          })).trim()
+          mermaid = extractMermaidFence(content)
+        }
+        if (mermaid === '') throw new Error('Model did not return a Mermaid mindmap')
+        content = mermaid
+      }
       if (content === '') throw new Error('Model returned empty content')
       this.assertLength(content, this.config.maxArtifactChars, `${kind} content`)
       const artifact: NotebookArtifact = { kind, content, updatedAt: Date.now() }
@@ -572,7 +598,14 @@ export class NotebooksService extends TypertRemoteService {
       : fetchNotebookUrl(url, { signal, web })
   }
 
-  private async complete(spec: { run: ActiveGeneration; system: string; user: string; onDraft: (text: string) => void }): Promise<string> {
+  private async complete(spec: {
+    run: ActiveGeneration
+    system: string
+    user: string
+    nudge?: string
+    accept?: (text: string) => boolean
+    onDraft: (text: string) => void
+  }): Promise<string> {
     const agents = this.ctx.get('agents')
     const agentDefaultModel = this.ctx.get('agentDefaultModel')
     const agentPresets = this.ctx.get('agentPresets')
@@ -600,9 +633,10 @@ export class NotebooksService extends TypertRemoteService {
       if (spec.run.controller.signal.aborted) return ''
       let text = lastAssistantText(handle)
       spec.onDraft(text)
-      if (text.trim() === '') {
+      const accepted = spec.accept === undefined ? text.trim() !== '' : spec.accept(text)
+      if (!accepted) {
         handle.agent.followup(createUserMessage({
-          content: [{ type: 'text', text: SUMMARY_RETRY_NUDGE }],
+          content: [{ type: 'text', text: spec.nudge ?? SUMMARY_RETRY_NUDGE }],
           source: { kind: 'user' },
         }))
         await handle.agent.whenIdle()
@@ -743,6 +777,8 @@ export class NotebooksService extends TypertRemoteService {
 }
 
 const SUMMARY_RETRY_NUDGE = 'Write the full note summary now. Use the required Title and Summary format from your instructions.'
+const MINDMAP_RETRY_NUDGE = 'Return only one fenced mermaid mindmap block. No analysis, plans, or other text.'
+const REPORT_RETRY_NUDGE = 'Write the full Markdown report now. Ground it only in the provided sources.'
 
 function requiredText(value: string, field: string): string { const text = value.trim(); if (text === '') throw new TypeError(`notebooks: ${field} must not be blank`); return text }
 function optionalText(value: string | undefined): string | null { const text = value?.trim(); return text === undefined || text === '' ? null : text }

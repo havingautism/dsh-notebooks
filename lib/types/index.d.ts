@@ -12,6 +12,7 @@ export { NotebookId, NotebookSourceId } from './types.ts';
 export { notebookArtifactSchema, notebookEntrySchema, notebookJobSchema, notebookSourceSchema, notebooksDomainSpec } from './spec.ts';
 export { formatNotebookMention, parseNotebookMentions } from './mention.ts';
 export { buildAskContext, buildSummaryUserPrompt, combineSources, entryKindFromSources, fallbackChatTitle, fallbackTitle, fetchNotebookUrl, jinaReaderUrl, parseGeneratedSummary, parseJinaReaderResponse, extractHtmlArticle, extractWebPageTitle, readableFetchText, selectedSources, } from './generate.ts';
+export { extractMermaidFence, mermaidSourceFromArtifact, parseMindmapTree } from './studio-mermaid.ts';
 export { defaultSharedSqlitePath, defaultNotebooksSqlitePath, legacyNotebooksSqlitePath } from './platform.ts';
 export { importLegacyNotebooksIfEmpty } from './migrate.ts';
 /** Required notebook capacity, generation, and content policy. */

@@ -82,6 +82,8 @@ export type NotebooksKey =
   | 'studio.generate'
   | 'studio.generating'
   | 'studio.expand'
+  | 'studio.mindmapInvalid'
+  | 'studio.failed'
   | 'source.original'
   | 'source.empty'
   | 'pane.sources'
@@ -186,6 +188,8 @@ export const zh: Record<NotebooksKey, string> = {
   'studio.generate': '生成',
   'studio.generating': '生成中…',
   'studio.expand': '放大思维导图',
+  'studio.mindmapInvalid': '这份内容不是可渲染的思维导图。请重新生成。',
+  'studio.failed': '生成失败：{error}',
   'source.original': '原文',
   'source.empty': '暂无正文',
   'pane.sources': '来源',
@@ -284,6 +288,8 @@ export const en: Record<NotebooksKey, string> = {
   'studio.generate': 'Generate',
   'studio.generating': 'Generating…',
   'studio.expand': 'Expand mind map',
+  'studio.mindmapInvalid': 'This is not a renderable mind map. Generate again.',
+  'studio.failed': 'Generation failed: {error}',
   'source.original': 'Original',
   'source.empty': 'No captured text',
   'pane.sources': 'Sources',

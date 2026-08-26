@@ -120,4 +120,64 @@ describe('assistant session text', () => {
     })
     expect(text).toBe('Title: Note')
   })
+
+  it('ignores reasoning content blocks', async () => {
+    const { assistantTextFromSession } = await import('../src/assistant-text.ts')
+    const text = assistantTextFromSession({
+      id: 's1',
+      deriveMessages: () => [
+        { role: 'assistant', content: [
+          { type: 'reasoning', text: 'The user wants a mindmap' },
+          { type: 'text', text: '```mermaid\nmindmap\n  Root\n```' },
+        ] },
+      ],
+      events: [],
+    })
+    expect(text).toContain('```mermaid')
+    expect(text).not.toContain('The user wants')
+  })
+})
+
+describe('mermaid extraction', () => {
+  it('keeps a fenced mermaid block and drops planning prose', async () => {
+    const { extractMermaidFence } = await import('../src/studio-mermaid.ts')
+    const extracted = extractMermaidFence([
+      'The user wants a concise Mermaid mindmap.',
+      '',
+      '```mermaid',
+      'mindmap',
+      '  Browser',
+      '    Engine',
+      '```',
+    ].join('\n'))
+    expect(extracted).toContain('mindmap')
+    expect(extracted).toContain('```mermaid')
+    expect(extracted).not.toContain('The user wants')
+  })
+
+  it('returns empty when the model only wrote planning prose', async () => {
+    const { extractMermaidFence } = await import('../src/studio-mermaid.ts')
+    expect(extractMermaidFence('The user wants a concise Mermaid mindmap grounded only in the provided source.')).toBe('')
+  })
+
+  it('unwraps the inner mermaid source for rendering', async () => {
+    const { mermaidSourceFromArtifact } = await import('../src/studio-mermaid.ts')
+    expect(mermaidSourceFromArtifact('```mermaid\nmindmap\n  Browser\n```')).toBe('mindmap\n  Browser')
+  })
+
+  it('parses an indented mermaid mindmap into a tree', async () => {
+    const { parseMindmapTree } = await import('../src/studio-mermaid.ts')
+    const tree = parseMindmapTree([
+      '```mermaid',
+      'mindmap',
+      '  root((浏览器结构))',
+      '    用户界面',
+      '    浏览器引擎',
+      '      渲染引擎',
+      '```',
+    ].join('\n'))
+    expect(tree?.label).toBe('浏览器结构')
+    expect(tree?.children.map(child => child.label)).toEqual(['用户界面', '浏览器引擎'])
+    expect(tree?.children[1]?.children.map(child => child.label)).toEqual(['渲染引擎'])
+  })
 })

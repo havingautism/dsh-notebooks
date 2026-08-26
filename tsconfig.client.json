@@ -12,6 +12,7 @@
   "files": [
     "src/client/index.ts",
     "src/client/NotebooksView.tsx",
+    "src/client/MermaidMindmap.tsx",
     "src/client/NotebooksSidebarEntry.tsx",
     "src/client/NotebooksOverlay.tsx",
     "src/client/NotebooksComposerButton.tsx",
@@ -26,7 +27,8 @@
     "src/client/locales.ts",
     "src/css-modules.d.ts",
     "src/types.ts",
-    "src/mention.ts"
+    "src/mention.ts",
+    "src/studio-mermaid.ts"
   ],
   "references": [
     { "path": "../deepseek-harness/vendor/cordis" },

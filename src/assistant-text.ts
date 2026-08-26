@@ -12,7 +12,12 @@ type SessionLike = {
 export function messageText(content: unknown): string {
   if (typeof content === 'string') return content
   if (!Array.isArray(content)) return ''
-  return content.map(block => typeof block === 'string' ? block : String((block as { text?: string }).text ?? '')).join('')
+  return content.map(block => {
+    if (typeof block === 'string') return block
+    const typed = block as { type?: string; text?: string }
+    if (typed.type !== undefined && typed.type !== 'text') return ''
+    return String(typed.text ?? '')
+  }).join('')
 }
 
 /** Latest assembled assistant prose, or in-flight stream chunks if the message is not on the surface yet. */
