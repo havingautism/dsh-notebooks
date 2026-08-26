@@ -2,6 +2,7 @@
     - id: notebooks
       name: '@deepseek-ai/dsh-notebooks'
       config:
+        runnerEnabled: true
         maxEntries: 10000
         maxContentChars: 50000
         maxSourcesPerEntry: 100

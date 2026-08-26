@@ -3,30 +3,40 @@ import type {
   RemoteResult,
   TypertRemoteContribution,
 } from '@deepseek-ai/dsh-typert-protocol'
-import type { NotebookAddSourceRequest, NotebookArtifactRequest, NotebookDeleteRequest, NotebookDeleteResult, NotebookEntry, NotebookGetRequest, NotebookListRequest, NotebookListResult, NotebookPutRequest, NotebookRemoveSourceRequest, NotebookRemoveSourceResult, NotebookSourceSelectionRequest, NotebookSummaryRequest } from '@deepseek-ai/dsh-notebooks/types'
+import type { NotebookAddSourceRequest, NotebookArtifactRequest, NotebookCandidateRequest, NotebookCandidateResult, NotebookCreateRequest, NotebookDeleteRequest, NotebookDeleteResult, NotebookEntry, NotebookGenerateStudioRequest, NotebookGetRequest, NotebookListRequest, NotebookListResult, NotebookPutRequest, NotebookRemoveSourceRequest, NotebookRemoveSourceResult, NotebookSaveChatAnswerRequest, NotebookSourceSelectionRequest, NotebookSummarizeRequest, NotebookSummaryRequest } from '@deepseek-ai/dsh-notebooks/types'
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespace$6e6f7465626f6f6b73 {
     addSource: (request: NotebookAddSourceRequest) => Promise<RemoteResult<NotebookEntry>>
+    candidates: (request: NotebookCandidateRequest) => Promise<RemoteResult<NotebookCandidateResult>>
+    create: (request: NotebookCreateRequest) => Promise<RemoteResult<NotebookEntry>>
     delete: (request: NotebookDeleteRequest) => Promise<RemoteResult<NotebookDeleteResult>>
+    generateStudio: (request: NotebookGenerateStudioRequest) => Promise<RemoteResult<NotebookEntry>>
     get: (request: NotebookGetRequest) => Promise<RemoteResult<NotebookEntry | null>>
     list: (request: NotebookListRequest) => Promise<RemoteResult<NotebookListResult>>
     put: (request: NotebookPutRequest) => Promise<RemoteResult<NotebookEntry>>
     removeSource: (request: NotebookRemoveSourceRequest) => Promise<RemoteResult<NotebookRemoveSourceResult>>
+    saveChatAnswer: (request: NotebookSaveChatAnswerRequest) => Promise<RemoteResult<NotebookEntry>>
     setArtifact: (request: NotebookArtifactRequest) => Promise<RemoteResult<NotebookEntry>>
     setSourceSelection: (request: NotebookSourceSelectionRequest) => Promise<RemoteResult<NotebookEntry>>
     setSummary: (request: NotebookSummaryRequest) => Promise<RemoteResult<NotebookEntry>>
+    summarize: (request: NotebookSummarizeRequest) => Promise<RemoteResult<NotebookEntry>>
   }
   interface TypertRemoteMap {
     'notebooks/addSource': (request: NotebookAddSourceRequest) => Promise<RemoteResult<NotebookEntry>>
+    'notebooks/candidates': (request: NotebookCandidateRequest) => Promise<RemoteResult<NotebookCandidateResult>>
+    'notebooks/create': (request: NotebookCreateRequest) => Promise<RemoteResult<NotebookEntry>>
     'notebooks/delete': (request: NotebookDeleteRequest) => Promise<RemoteResult<NotebookDeleteResult>>
+    'notebooks/generateStudio': (request: NotebookGenerateStudioRequest) => Promise<RemoteResult<NotebookEntry>>
     'notebooks/get': (request: NotebookGetRequest) => Promise<RemoteResult<NotebookEntry | null>>
     'notebooks/list': (request: NotebookListRequest) => Promise<RemoteResult<NotebookListResult>>
     'notebooks/put': (request: NotebookPutRequest) => Promise<RemoteResult<NotebookEntry>>
     'notebooks/removeSource': (request: NotebookRemoveSourceRequest) => Promise<RemoteResult<NotebookRemoveSourceResult>>
+    'notebooks/saveChatAnswer': (request: NotebookSaveChatAnswerRequest) => Promise<RemoteResult<NotebookEntry>>
     'notebooks/setArtifact': (request: NotebookArtifactRequest) => Promise<RemoteResult<NotebookEntry>>
     'notebooks/setSourceSelection': (request: NotebookSourceSelectionRequest) => Promise<RemoteResult<NotebookEntry>>
     'notebooks/setSummary': (request: NotebookSummaryRequest) => Promise<RemoteResult<NotebookEntry>>
+    'notebooks/summarize': (request: NotebookSummarizeRequest) => Promise<RemoteResult<NotebookEntry>>
   }
   interface TypertRemoteNamespaceMap {
     'notebooks': TypertRemoteNamespace$6e6f7465626f6f6b73

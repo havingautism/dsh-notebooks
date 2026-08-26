@@ -22,8 +22,16 @@ export const NotebookSourceId = (value: string): NotebookSourceId => value as No
 
 /** Origin of one notebook source. */
 export type NotebookSourceKind = 'manual' | 'url' | 'document' | 'chat_answer'
+/** Dominant origin shown on library cards. */
+export type NotebookEntryKind = NotebookSourceKind | 'notebook'
+/** Fetch or extraction status for one source or the whole notebook. */
+export type NotebookFetchStatus = 'ready' | 'pending_fetch' | 'failed'
 /** Studio artifact generated from selected sources. */
 export type NotebookArtifactKind = 'mindmap' | 'report'
+/** Host generation currently attached to a notebook. */
+export type NotebookJobKind = 'summary' | 'mindmap' | 'report'
+/** Lifecycle of one host generation job. */
+export type NotebookJobStatus = 'pending' | 'running' | 'completed' | 'failed'
 
 /** One source attached to a notebook. */
 export interface NotebookSource {
@@ -34,6 +42,9 @@ export interface NotebookSource {
   readonly mimeType: string | null
   readonly content: string
   readonly selected: boolean
+  readonly status: NotebookFetchStatus
+  readonly sessionId: string | null
+  readonly messageId: string | null
   readonly createdAt: number
 }
 
@@ -44,6 +55,16 @@ export interface NotebookArtifact {
   readonly updatedAt: number
 }
 
+/** Latest host generation attached to a notebook. */
+export interface NotebookJob {
+  readonly id: string
+  readonly kind: NotebookJobKind
+  readonly status: NotebookJobStatus
+  readonly partialText: string
+  readonly errorText: string
+  readonly updatedAt: number
+}
+
 /** One detached notebook entry returned to tools and Remote clients. */
 export interface NotebookEntry {
   readonly id: NotebookId
@@ -51,8 +72,12 @@ export interface NotebookEntry {
   readonly content: string
   readonly summary: string
   readonly tags: string[]
+  readonly sourceType: NotebookEntryKind
+  readonly sourceUrl: string | null
+  readonly fetchStatus: NotebookFetchStatus
   readonly sources: NotebookSource[]
   readonly artifacts: NotebookArtifact[]
+  readonly latestJob: NotebookJob | null
   readonly createdAt: number
   readonly updatedAt: number
 }
@@ -77,6 +102,22 @@ export interface NotebookPutRequest {
   readonly tags?: string[]
 }
 
+/** Uploaded text document attached at create time. */
+export interface NotebookDocumentInput {
+  readonly name: string
+  readonly mimeType?: string
+  readonly content: string
+}
+
+/** Create a notebook from mixed sources and start host summarization. */
+export interface NotebookCreateRequest {
+  readonly title?: string
+  readonly content?: string
+  readonly urls?: string[]
+  readonly documents?: NotebookDocumentInput[]
+  readonly tags?: string[]
+}
+
 /** Attach a manual, URL, document, or chat source. */
 export interface NotebookAddSourceRequest {
   readonly id: NotebookId
@@ -84,7 +125,9 @@ export interface NotebookAddSourceRequest {
   readonly name: string
   readonly url?: string
   readonly mimeType?: string
-  readonly content: string
+  readonly content?: string
+  readonly sessionId?: string
+  readonly messageId?: string
 }
 /** Select the exact sources used by summary and Studio work. */
 export interface NotebookSourceSelectionRequest {
@@ -107,9 +150,50 @@ export interface NotebookArtifactRequest {
   readonly kind: NotebookArtifactKind
   readonly content: string
 }
+/** Start host summarization for one notebook. */
+export interface NotebookSummarizeRequest { readonly id: NotebookId }
+/** Start host Studio generation for one notebook. */
+export interface NotebookGenerateStudioRequest {
+  readonly id: NotebookId
+  readonly kind: NotebookArtifactKind
+}
+/** Save an assistant reply as a chat-answer notebook. */
+export interface NotebookSaveChatAnswerRequest {
+  readonly title?: string
+  readonly answerText: string
+  readonly questionText?: string
+  readonly sessionId?: string
+  readonly messageId?: string
+  readonly tags?: string[]
+}
+/** Filter for composer mention candidates. */
+export interface NotebookCandidateRequest { readonly query?: string }
+/** One composer mention candidate. */
+export interface NotebookMentionCandidate {
+  readonly id: NotebookId
+  readonly title: string
+  readonly mention: string
+  readonly summary: string
+  /** True while overview generation is still running and no summary exists yet. */
+  readonly summarizing: boolean
+}
+/** Mention candidate listing. */
+export interface NotebookCandidateResult { readonly candidates: NotebookMentionCandidate[] }
 /** Delete one notebook entry. */
 export interface NotebookDeleteRequest { readonly id: NotebookId }
 /** Stable deletion outcome. */
 export interface NotebookDeleteResult { readonly deleted: boolean }
 /** Stable source-removal outcome. */
 export interface NotebookRemoveSourceResult { readonly removed: boolean; readonly entry: NotebookEntry }
+
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * Live notebook snapshot after each durable mutation so the workspace
+     * can refresh sources, summaries, and Studio drafts without polling.
+     * @param entry - detached notebook after the mutation.
+     * @mode emit
+     */
+    'notebooks/progress'(entry: NotebookEntry): void
+  }
+}

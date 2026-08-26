@@ -8,8 +8,10 @@ import Tools from '@deepseek-ai/dsh-tools'
 import Storage from '@deepseek-ai/dsh-storage'
 import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
 import * as StorageJson from '@deepseek-ai/dsh-storage-json'
+import * as StorageSqlite from '@deepseek-ai/dsh-storage-sqlite'
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
-import Notebooks, { NotebookId } from '../src/index.ts'
+import Notebooks, { NotebookId } from '../lib/index.js'
+import { formatNotebookMention, parseNotebookMentions } from '../lib/types/mention.js'
 
 const contexts: Context[] = []
 const roots: string[] = []
@@ -35,6 +37,7 @@ async function harness(root?: string): Promise<Context> {
     maxSourcesPerEntry: 3,
     maxSourceChars: 80,
     maxArtifactChars: 120,
+    sqlitePath: join(storageRoot, 'notebooks.sqlite'),
   })
   return ctx
 }
@@ -44,12 +47,12 @@ describe('Notebooks extension', () => {
     const ctx = await harness()
     expect(ctx.notebooks.typertRemote.namespace).toBe('notebooks')
     expect(remoteMethods(ctx.notebooks).map(marker => marker.method)).toEqual([
-      'list', 'get', 'put', 'addSource', 'setSourceSelection', 'removeSource',
-      'setSummary', 'setArtifact', 'delete',
+      'list', 'get', 'candidates', 'put', 'create', 'addSource', 'setSourceSelection', 'removeSource',
+      'setSummary', 'setArtifact', 'summarize', 'generateStudio', 'saveChatAnswer', 'delete',
     ])
     expect(ctx.tools.schemas().map(schema => schema.name)).toEqual([
       'notebook_list', 'notebook_write', 'notebook_add_source',
-      'notebook_set_summary', 'notebook_set_artifact', 'notebook_delete',
+      'notebook_set_summary', 'notebook_set_artifact', 'notebook_save_chat_answer', 'notebook_delete',
     ])
   })
 
@@ -116,5 +119,83 @@ describe('Notebooks extension', () => {
     expect(second.notebooks.get({ id: note.id })?.sources[1]?.kind).toBe('chat_answer')
     expect(second.notebooks.list({ query: 'durable answer' }).entries.map(entry => entry.id)).toEqual([note.id])
     expect(second.notebooks.get({ id: NotebookId('missing') })).toBeNull()
+  })
+
+  it('parses a composer mention into one notebook identity', () => {
+    const mention = formatNotebookMention(NotebookId('note-1'), 'Renderer notes')
+    expect(mention).toBe('@[Renderer notes](dsh-notebook:note-1)')
+    expect(parseNotebookMentions(`See ${mention} please`)).toEqual({
+      text: 'See @Renderer notes please',
+      ids: ['note-1'],
+    })
+  })
+
+  it('creates mixed sources and invalidates derived summary after a source change', async () => {
+    const ctx = await harness()
+    const created = await ctx.notebooks.create({
+      title: 'Mixed note',
+      content: 'Handwritten seed.',
+      urls: ['https://example.test/article'],
+      documents: [{ name: 'notes.md', content: 'Document body' }],
+    })
+    expect(created.sources.map(source => source.kind)).toEqual(['url', 'manual', 'document'])
+    expect(created.sources[0]?.status).toBe('pending_fetch')
+    expect(created.sourceType).toBe('notebook')
+    const summarized = await ctx.notebooks.setSummary({ id: created.id, summary: 'Stale overview.' })
+    await ctx.notebooks.setArtifact({ id: created.id, kind: 'report', content: '# Stale' })
+    const next = await ctx.notebooks.setSourceSelection({
+      id: summarized.id,
+      sourceIds: [created.sources[0]!.id],
+    })
+    expect(next.summary).toBe('')
+    expect(next.artifacts).toEqual([])
+  })
+
+  it('saves a chat answer as its own notebook and lists mention candidates', async () => {
+    const ctx = await harness()
+    const saved = await ctx.notebooks.saveChatAnswer({
+      questionText: 'What is a notebook?',
+      answerText: 'A durable multi-source note.',
+    })
+    expect(saved.sourceType).toBe('chat_answer')
+    expect(saved.sources[0]?.kind).toBe('chat_answer')
+    expect(ctx.notebooks.candidates({ query: 'durable' }).candidates[0]?.mention).toContain('dsh-notebook:')
+  })
+
+  it('refuses Studio generation while the runner is disabled', async () => {
+    const ctx = await harness()
+    const created = await ctx.notebooks.put({ title: 'Quiet', content: 'No runner' })
+    await expect(ctx.notebooks.generateStudio({ id: created.id, kind: 'mindmap' })).rejects.toThrow('generation runner is disabled')
+  })
+
+  it('mounts sqlite itself when the host has not', async () => {
+    const ctx = await harness()
+    expect(ctx.storage.backend.names()).toContain('sqlite')
+    const created = await ctx.notebooks.put({ title: 'Stored', content: 'On sqlite' })
+    expect(ctx.notebooks.get({ id: created.id })?.content).toBe('On sqlite')
+  })
+
+  it('reuses an already mounted sqlite backend', async () => {
+    const storageRoot = await mkdtemp(join(tmpdir(), 'dsh-notebooks-share-'))
+    roots.push(storageRoot)
+    const ctx = new Context()
+    contexts.push(ctx)
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(Tools)
+    await ctx.plugin(Storage)
+    await ctx.plugin(StorageJson, { root: storageRoot })
+    await ctx.plugin(StorageSqlite, { path: join(storageRoot, 'shared.sqlite') })
+    await ctx.plugin(StorageDomain, { backend: 'json' })
+    await ctx.plugin(Notebooks, {
+      maxEntries: 2,
+      maxContentChars: 40,
+      maxSourcesPerEntry: 3,
+      maxSourceChars: 80,
+      maxArtifactChars: 120,
+      sqlitePath: join(storageRoot, 'unused.sqlite'),
+    })
+    expect(ctx.storage.backend.names().filter(name => name === 'sqlite')).toEqual(['sqlite'])
+    const created = await ctx.notebooks.put({ title: 'Shared', content: 'Existing backend' })
+    expect(ctx.notebooks.get({ id: created.id })?.title).toBe('Shared')
   })
 })
