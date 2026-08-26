@@ -127,10 +127,7 @@ export function NotebooksView({ t, notebookId, onSelectNotebook, onClose, ...api
 
   const updateSelected = useCallback((entry: NotebookEntry) => {
     const next = hydrateNotebook(entry)
-    setSelected(current => current?.id === next.id && current.updatedAt === next.updatedAt
-      && current.latestJob?.partialText === next.latestJob?.partialText
-      && current.latestJob?.stage === next.latestJob?.stage
-      ? current : next)
+    setSelected(current => current?.id === next.id && !notebookEntryChanged(current, next) ? current : next)
     setEntries(current => current.map(item => item.id === next.id ? next : item))
   }, [])
 
@@ -195,17 +192,28 @@ export function NotebooksView({ t, notebookId, onSelectNotebook, onClose, ...api
 function NotebookCard({ entry, index, list, t, onOpen, onDelete }: { entry: NotebookEntry; index: number; list: boolean; t: Translate; onOpen: () => void; onDelete: () => void }) {
   const [emoji, title] = splitEmoji(entry.title)
   const job = entry.latestJob
-  const busy = job !== null && (job.status === 'pending' || job.status === 'running')
+  const jobFailed = job !== null && job.status === 'failed' && job.kind === 'summary'
+  const busy = !jobFailed && job !== null && (job.status === 'pending' || job.status === 'running')
   const fetching = busy && job.kind === 'summary' && job.stage === 'fetch'
-  return <article className={css.notebookCard} data-list={list || undefined} data-busy={busy || undefined} style={{ '--card-tint': CARD_TONES[index % CARD_TONES.length] } as React.CSSProperties}>
+  const summarizing = busy && job.kind === 'summary' && job.stage === 'generate'
+  const statusLine = jobFailed
+    ? t('overview.failed', { error: job.errorText || t('overview.empty') })
+    : fetching
+      ? t('overview.fetching', { detail: job.partialText })
+      : summarizing
+        ? t('overview.summarizing')
+        : t('card.sources', { count: entry.sources.length, date: formatDate(entry.updatedAt) })
+  return <article className={css.notebookCard} data-list={list || undefined} data-busy={busy || undefined} data-failed={jobFailed || undefined} style={{ '--card-tint': CARD_TONES[index % CARD_TONES.length] } as React.CSSProperties}>
     <button className={css.cardOpen} type="button" onClick={onOpen} aria-label={t('card.openAria', { title: entry.title })} />
     <div className={css.cardEmoji}>{emoji || sourceEmoji(entry)}</div>
     <div className={css.cardInfo}>
       <h3>{title}</h3>
-      <p>{busy ? (fetching ? t('card.fetching') : t('card.summarizing')) : (entry.summary || entry.content)}</p>
-      <span>{busy
-        ? <><IconLoading className={css.spinner} size={11} />{fetching ? t('overview.fetching', { detail: job.partialText }) : t('overview.summarizing')}</>
-        : t('card.sources', { count: entry.sources.length, date: formatDate(entry.updatedAt) })}</span>
+      <p>{jobFailed ? (job.errorText || t('overview.empty')) : busy ? (fetching ? t('card.fetching') : t('card.summarizing')) : (entry.summary || entry.content)}</p>
+      <span>{jobFailed
+        ? statusLine
+        : busy
+          ? <><IconLoading className={css.spinner} size={11} />{statusLine}</>
+          : statusLine}</span>
     </div>
     <button className={css.deleteButton} type="button" aria-label={t('workspace.delete')} onClick={event => { event.stopPropagation(); onDelete() }}><IconX size={15} /></button>
   </article>
@@ -320,7 +328,8 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
   }
 
   const job = entry.latestJob
-  const summarizing = job !== null && job.kind === 'summary' && (job.status === 'pending' || job.status === 'running')
+  const jobFailed = job !== null && job.status === 'failed' && job.kind === 'summary'
+  const summarizing = !jobFailed && job !== null && job.kind === 'summary' && (job.status === 'pending' || job.status === 'running')
   const fetching = summarizing && job.stage === 'fetch'
   const generatingStudio = job !== null && job.kind === studioKind && (job.status === 'pending' || job.status === 'running')
   const artifact = entry.artifacts.find(item => item.kind === studioKind)
@@ -328,7 +337,14 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
   const summaryText = summaryDraft.trim() !== '' ? summaryDraft : entry.summary
   const studioText = generatingStudio && job.partialText.trim() !== '' ? job.partialText : artifact?.content ?? ''
   const viewing = entry.sources.find(source => source.id === viewingSourceId) ?? null
-  const jobFailed = job !== null && job.status === 'failed' && job.kind === 'summary'
+
+  useEffect(() => {
+    if (!summarizing) return
+    const timer = window.setInterval(() => {
+      void api.get(entry.id).then(next => { if (next !== null) onChange(next) }).catch(() => undefined)
+    }, 2000)
+    return () => { window.clearInterval(timer) }
+  }, [api, entry.id, onChange, summarizing])
 
   return <div className={css.workspace}>
     <header className={css.workspaceHeader}>
@@ -354,6 +370,7 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
           <SourceRow
             key={source.id}
             source={source}
+            job={entry.latestJob}
             t={t}
             active={source.id === viewingSourceId}
             onOpen={() => { setViewingSourceId(source.id); setMobilePane('summary') }}
@@ -378,7 +395,7 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
             <IconLoading className={css.spinner} size={14} />
             <span>{fetching ? t('overview.fetching', { detail: job.partialText }) : t('overview.summarizing')}</span>
           </div> : null}
-          {jobFailed && !summarizing ? <div className={css.jobError} role="alert">{t('overview.failed', { error: job.errorText || t('overview.empty') })}</div> : null}
+          {jobFailed ? <div className={css.jobError} role="alert">{t('overview.failed', { error: job.errorText || t('overview.empty') })}</div> : null}
           {summaryText.trim() === ''
             ? <div className={css.emptyPane}>{summarizing ? null : t('overview.empty')}</div>
             : <article className={css.markdownDocument} data-streaming={summarizing && !fetching || undefined}><MarkdownText text={summaryText} streaming={summarizing && !fetching} /></article>}
@@ -429,12 +446,25 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
   </div>
 }
 
-function SourceRow({ source, t, active, onOpen, onToggle, onRemove }: { source: NotebookSource; t: Translate; active: boolean; onOpen: () => void; onToggle: () => void; onRemove: () => void }) {
-  return <article className={css.sourceRow} data-selected={source.selected || undefined} data-active={active || undefined}>
+function SourceRow({ source, job, t, active, onOpen, onToggle, onRemove }: { source: NotebookSource; job: NotebookEntry['latestJob']; t: Translate; active: boolean; onOpen: () => void; onToggle: () => void; onRemove: () => void }) {
+  const summaryJob = job !== null && job.kind === 'summary' && (job.status === 'pending' || job.status === 'running')
+  const fetchingThis = summaryJob && job.stage === 'fetch' && source.status === 'pending_fetch'
+  const statusLabel = fetchingThis
+    ? t('sources.pending')
+    : source.status === 'pending_fetch' && summaryJob && job.stage === 'generate'
+      ? (source.content.trim() !== '' ? hostname(source.url ?? '') : t('sources.failed'))
+      : source.status === 'pending_fetch'
+        ? t('sources.pending')
+        : source.status === 'failed'
+          ? t('sources.failed')
+          : source.kind === 'url'
+            ? hostname(source.url ?? '')
+            : source.kind
+  return <article className={css.sourceRow} data-selected={source.selected || undefined} data-active={active || undefined} data-fetching={fetchingThis || undefined}>
     <input type="checkbox" checked={source.selected} onChange={onToggle} aria-label={source.name} />
     <button className={css.sourceOpen} type="button" onClick={onOpen}>
       <strong>{source.name}</strong>
-      <span>{source.status === 'pending_fetch' ? t('sources.pending') : source.status === 'failed' ? t('sources.failed') : source.kind === 'url' ? hostname(source.url ?? '') : source.kind}</span>
+      <span>{statusLabel}</span>
     </button>
     {source.url === null ? null : <a className={css.sourceLink} href={source.url} target="_blank" rel="noreferrer" aria-label={t('sources.openLink')} onClick={event => { event.stopPropagation() }}><IconExternalLink size={13} /></a>}
     <button type="button" onClick={onRemove} aria-label={t('sources.remove')}><IconX size={14} /></button>
@@ -459,4 +489,25 @@ function hostname(value: string): string {
 }
 function messageOf(value: unknown): string {
   return value instanceof Error ? value.message : String(value)
+}
+function notebookEntryChanged(current: NotebookEntry | null, next: NotebookEntry): boolean {
+  if (current === null) return true
+  if (current.updatedAt !== next.updatedAt) return true
+  if (current.summary !== next.summary) return true
+  if (current.content !== next.content) return true
+  const cj = current.latestJob
+  const nj = next.latestJob
+  if (cj !== null || nj !== null) {
+    if (cj === null || nj === null) return true
+    if (cj.id !== nj.id || cj.status !== nj.status || cj.stage !== nj.stage
+      || cj.partialText !== nj.partialText || cj.errorText !== nj.errorText) return true
+  }
+  if (current.sources.length !== next.sources.length) return true
+  for (let index = 0; index < next.sources.length; index += 1) {
+    const cs = current.sources[index]
+    const ns = next.sources[index]
+    if (cs === undefined || ns.id !== cs.id || ns.status !== cs.status
+      || ns.content !== cs.content || ns.name !== cs.name || ns.selected !== cs.selected) return true
+  }
+  return false
 }

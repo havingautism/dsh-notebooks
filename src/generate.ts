@@ -43,7 +43,32 @@ export function parseGeneratedSummary(rawResult: string): { title: string; summa
   let summary = raw
   if (summaryIndex >= 0) summary = lines.slice(summaryIndex + 1).join('\n').trim()
   else if (titleIndex >= 0) summary = lines.filter((_, index) => index !== titleIndex).join('\n').trim()
+  if (summary.trim() === '' && raw !== '') summary = raw
   return { title, summary }
+}
+
+/** Codemini-aligned user prompt for notebook summary generation. */
+export function buildSummaryUserPrompt(input: {
+  title?: string
+  sourceUrl?: string | null
+  contentText: string
+  sourceQuestionText?: string
+}): string {
+  const sourceBody = truncateForGeneration(input.contentText)
+  return [
+    input.title?.trim() ? `Title: ${input.title.trim()}` : '',
+    input.sourceUrl?.trim() ? `Source URL: ${input.sourceUrl.trim()}` : '',
+    input.sourceQuestionText?.trim() ? `Original user question: ${input.sourceQuestionText.trim()}` : '',
+    '',
+    'Please write a detailed note summary for future follow-up questions.',
+    input.sourceQuestionText?.trim()
+      ? 'Use the original user question only as supporting context for understanding what the answer is responding to.'
+      : '',
+    'Cover the main point, important details, key facts, structure, and any actionable takeaways.',
+    'If the source contains image references that are important for understanding, keep them in the summary.',
+    '',
+    sourceBody,
+  ].filter(Boolean).join('\n')
 }
 
 /** Ensure a generated title has an emoji and stays short. */

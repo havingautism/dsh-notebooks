@@ -20,7 +20,7 @@ import type { KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import {
-  buildAskContext, combineSources, entryKindFromSources, fallbackChatTitle, fallbackTitle,
+  buildAskContext, buildSummaryUserPrompt, combineSources, entryKindFromSources, fallbackChatTitle, fallbackTitle,
   fetchNotebookUrl, isAbsoluteHttpUrl, parseGeneratedSummary, previewSummary, selectedSources, studioPrompt,
   truncateForGeneration,
 } from './generate.ts'
@@ -45,7 +45,7 @@ export { NotebookId, NotebookSourceId } from './types.ts'
 export { notebookArtifactSchema, notebookEntrySchema, notebookJobSchema, notebookSourceSchema, notebooksDomainSpec } from './spec.ts'
 export { formatNotebookMention, parseNotebookMentions } from './mention.ts'
 export {
-  buildAskContext, combineSources, entryKindFromSources, fallbackChatTitle, fallbackTitle,
+  buildAskContext, buildSummaryUserPrompt, combineSources, entryKindFromSources, fallbackChatTitle, fallbackTitle,
   fetchNotebookUrl, jinaReaderUrl, parseGeneratedSummary, parseJinaReaderResponse,
   extractHtmlArticle, extractWebPageTitle, readableFetchText, selectedSources,
 } from './generate.ts'
@@ -446,14 +446,21 @@ export class NotebooksService extends TypertRemoteService {
       await this.patchJob(id, run.jobId, { status: 'running', stage: 'generate', partialText: '' })
       const active = selectedSources(fetched)
       const contentText = truncateForGeneration(combineSources(active) || fetched.content)
-      const generated = parseGeneratedSummary(await this.complete({
+      if (contentText.trim() === '') throw new Error('No source content available for summary')
+      const raw = await this.complete({
         run, system: SUMMARY_SYSTEM_PROMPT,
-        user: ['Please write a detailed note summary for future follow-up questions.', contentText].join('\n\n'),
+        user: buildSummaryUserPrompt({
+          title: fetched.title,
+          sourceUrl: fetched.sourceUrl,
+          contentText,
+        }),
         onDraft: text => { void this.patchJob(id, run.jobId, { status: 'running', stage: 'generate', partialText: text }) },
-      }))
+      })
+      if (raw.trim() === '') throw new Error('Model returned empty note summary')
+      const generated = parseGeneratedSummary(raw)
       const title = generated.title || fallbackTitle({ title: fetched.title, sourceUrl: fetched.sourceUrl, contentText })
-      const summary = generated.summary
-      if (summary === '') throw new Error('Empty note summary')
+      const summary = generated.summary.trim()
+      if (summary === '') throw new Error('Model returned empty note summary')
       await this.update(id, current => ({
         ...current, title, content: contentText || current.content, summary,
         sources: fetched.sources, fetchStatus: contentText || current.content ? 'ready' : current.fetchStatus,
@@ -501,7 +508,14 @@ export class NotebooksService extends TypertRemoteService {
       } catch (error) {
         if (run.controller.signal.aborted) return
         const message = error instanceof Error ? error.message : String(error)
-        await this.update(id, entry => ({ ...entry, latestJob: job(jobId, kind, 'failed', entry.latestJob?.partialText ?? '', message) })).catch(() => undefined)
+        await this.update(id, entry => {
+          const current = entry.latestJob
+          if (current?.id !== jobId) return entry
+          return {
+            ...entry,
+            latestJob: { ...current, status: 'failed', errorText: message, updatedAt: Date.now() },
+          }
+        }).catch(() => undefined)
       } finally {
         if (this.activeJobs.get(id)?.jobId === jobId) this.activeJobs.delete(id)
       }
@@ -534,13 +548,19 @@ export class NotebooksService extends TypertRemoteService {
       } catch {
         sources[index] = { ...source, status: 'failed' }
       }
+      const partialSources = [...sources]
+      const partialContent = selectedSources({ ...entry, sources: partialSources }).map(item => item.content).find(text => text !== '') ?? entry.content
+      const partialFetchStatus: NotebookFetchStatus = partialSources.some(item => item.status === 'pending_fetch')
+        ? 'pending_fetch'
+        : partialSources.some(item => item.status === 'failed') && partialContent === '' ? 'failed' : 'ready'
+      await this.update(entry.id, current => ({
+        ...current,
+        sources: partialSources,
+        content: partialContent,
+        fetchStatus: partialFetchStatus,
+        sourceUrl: partialSources.find(item => item.url !== null)?.url ?? current.sourceUrl,
+      }))
     }
-    const content = selectedSources({ ...entry, sources }).map(source => source.content).find(text => text !== '') ?? entry.content
-    const fetchStatus: NotebookFetchStatus = sources.some(source => source.status === 'pending_fetch')
-      ? 'pending_fetch'
-      : sources.some(source => source.status === 'failed') && content === '' ? 'failed' : 'ready'
-    const next = { ...entry, sources, content, fetchStatus, sourceUrl: sources.find(source => source.url !== null)?.url ?? entry.sourceUrl }
-    await this.update(entry.id, current => ({ ...current, sources: next.sources, content: next.content, fetchStatus: next.fetchStatus, sourceUrl: next.sourceUrl }))
     return this.requireEntry(entry.id)
   }
 
@@ -576,7 +596,20 @@ export class NotebooksService extends TypertRemoteService {
       if (spec.run.controller.signal.aborted) return ''
       handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: spec.user }], source: { kind: 'user' } }))
       await handle.agent.whenIdle()
-      return lastAssistantText(handle)
+      if (spec.run.controller.signal.aborted) return ''
+      let text = lastAssistantText(handle)
+      spec.onDraft(text)
+      if (text.trim() === '') {
+        handle.agent.followup(createUserMessage({
+          content: [{ type: 'text', text: SUMMARY_RETRY_NUDGE }],
+          source: { kind: 'user' },
+        }))
+        await handle.agent.whenIdle()
+        if (spec.run.controller.signal.aborted) return ''
+        text = lastAssistantText(handle)
+        spec.onDraft(text)
+      }
+      return text
     } finally {
       stopDraft()
       await handle.dispose()
@@ -707,6 +740,8 @@ export class NotebooksService extends TypertRemoteService {
     if (value.length > limit) throw new RangeError(`notebooks: ${field} exceeds ${limit} characters`)
   }
 }
+
+const SUMMARY_RETRY_NUDGE = 'Write the full note summary now. Use the required Title and Summary format from your instructions.'
 
 function requiredText(value: string, field: string): string { const text = value.trim(); if (text === '') throw new TypeError(`notebooks: ${field} must not be blank`); return text }
 function optionalText(value: string | undefined): string | null { const text = value?.trim(); return text === undefined || text === '' ? null : text }

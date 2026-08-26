@@ -9,6 +9,13 @@ export declare function parseGeneratedSummary(rawResult: string): {
     title: string;
     summary: string;
 };
+/** Codemini-aligned user prompt for notebook summary generation. */
+export declare function buildSummaryUserPrompt(input: {
+    title?: string;
+    sourceUrl?: string | null;
+    contentText: string;
+    sourceQuestionText?: string;
+}): string;
 /** Ensure a generated title has an emoji and stays short. */
 export declare function normalizeGeneratedTitle(rawTitle: string): string;
 /** Fallback title when the model omits one. */

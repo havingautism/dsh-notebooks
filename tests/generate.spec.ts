@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  extractHtmlArticle, extractWebPageTitle, fetchNotebookUrl, jinaReaderUrl,
-  parseJinaReaderResponse, readableFetchText,
+  buildSummaryUserPrompt, extractHtmlArticle, extractWebPageTitle, fetchNotebookUrl, jinaReaderUrl,
+  parseGeneratedSummary, parseJinaReaderResponse, readableFetchText,
 } from '../src/generate.ts'
 
 describe('Jina Reader helpers', () => {
@@ -71,5 +71,24 @@ describe('Jina Reader helpers', () => {
     const extracted = extractHtmlArticle(html, 'https://developer.aliyun.com/article/1')
     expect(extracted.title).toBe('Real article title')
     expect(extracted.content).toBe(text)
+  })
+})
+
+describe('summary prompts', () => {
+  it('builds Codemini-aligned summary user prompts', () => {
+    const prompt = buildSummaryUserPrompt({
+      title: 'Test note',
+      sourceUrl: 'https://example.com/post',
+      contentText: 'Body text',
+    })
+    expect(prompt).toContain('Title: Test note')
+    expect(prompt).toContain('Source URL: https://example.com/post')
+    expect(prompt).toContain('Please write a detailed note summary')
+    expect(prompt).toContain('Body text')
+  })
+
+  it('falls back to raw text when parsed summary is empty', () => {
+    const parsed = parseGeneratedSummary('Title: 📝 Only title')
+    expect(parsed.summary).toBe('Title: 📝 Only title')
   })
 })
