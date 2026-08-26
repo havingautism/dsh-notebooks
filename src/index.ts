@@ -26,6 +26,7 @@ import {
 } from './generate.ts'
 import { formatNotebookMention, parseNotebookMentions } from './mention.ts'
 import { MINDMAP_SYSTEM_PROMPT, REPORT_SYSTEM_PROMPT, SUMMARY_SYSTEM_PROMPT } from './prompts.ts'
+import { lastAssistantText, watchDraft } from './assistant-text.ts'
 import { defaultSharedSqlitePath, ensurePluginPlatform, legacyNotebooksSqlitePath } from './platform.ts'
 import { importLegacyNotebooksIfEmpty } from './migrate.ts'
 import { notebooksDomainSpec } from './spec.ts'
@@ -765,63 +766,6 @@ function snapshot(entry: NotebookEntry): NotebookEntry {
     artifacts: entry.artifacts.map(artifact => Object.freeze({ ...artifact })),
     latestJob: entry.latestJob === null ? null : Object.freeze({ ...entry.latestJob }),
   })
-}
-
-function lastAssistantText(handle: AgentHandle): string {
-  const agent = handle.agent as { messages?: unknown; session?: { messages?: unknown } }
-  const messages = Array.isArray(agent.messages) ? agent.messages : Array.isArray(agent.session?.messages) ? agent.session.messages : []
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index] as { role?: string; content?: unknown }
-    if (message.role !== 'assistant') continue
-    const text = messageText(message.content)
-    if (text !== '') return text
-  }
-  return ''
-}
-
-function messageText(content: unknown): string {
-  if (typeof content === 'string') return content
-  if (!Array.isArray(content)) return ''
-  return content.map(block => typeof block === 'string' ? block : String((block as { text?: string }).text ?? '')).join('')
-}
-
-function watchDraft(handle: AgentHandle, onDraft: (text: string) => void): () => void {
-  let last = ''
-  let streamed = ''
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const push = (text: string) => {
-    const next = text.trim()
-    if (next === '' || next === last) return
-    last = next
-    onDraft(next.slice(0, 12000))
-  }
-  const emit = () => { push(streamed || lastAssistantText(handle)) }
-  const schedule = () => {
-    if (timer !== undefined) return
-    timer = setTimeout(() => { timer = undefined; emit() }, 80)
-  }
-  const ctx = handle.agent.ctx as { on?: (event: string, listener: (payload?: unknown) => void) => () => void } | undefined
-  const offChunk = ctx?.on?.('assistant/chunk', payload => {
-    const chunk = (payload as { chunk?: { type?: string; text?: string } } | undefined)?.chunk
-    if (chunk?.type === 'text-delta' && chunk.text) {
-      const first = streamed === ''
-      streamed += chunk.text
-      if (first) emit()
-      else schedule()
-    }
-  })
-  const offMessage = ctx?.on?.('assistant/message', payload => {
-    const text = messageText((payload as { message?: { content?: unknown } } | undefined)?.message?.content)
-    if (text !== '') { streamed = text; emit() }
-  })
-  const poll = setInterval(emit, 200)
-  emit()
-  return () => {
-    if (timer !== undefined) clearTimeout(timer)
-    clearInterval(poll)
-    offChunk?.()
-    offMessage?.()
-  }
 }
 
 export default NotebooksService

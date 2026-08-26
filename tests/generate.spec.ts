@@ -92,3 +92,32 @@ describe('summary prompts', () => {
     expect(parsed.summary).toBe('Title: 📝 Only title')
   })
 })
+
+describe('assistant session text', () => {
+  it('reads assembled assistant text from deriveMessages', async () => {
+    const { assistantTextFromSession } = await import('../src/assistant-text.ts')
+    const text = assistantTextFromSession({
+      id: 's1',
+      deriveMessages: () => [
+        { role: 'user', content: [{ type: 'text', text: 'summarize' }] },
+        { role: 'assistant', content: [{ type: 'text', text: 'Title: 📝 Note\nSummary:\nBody' }] },
+      ],
+      events: [],
+    })
+    expect(text).toContain('Summary:')
+  })
+
+  it('reads in-flight chunks when deriveMessages is still empty', async () => {
+    const { assistantTextFromSession } = await import('../src/assistant-text.ts')
+    const text = assistantTextFromSession({
+      id: 's1',
+      deriveMessages: () => [],
+      events: [
+        { type: 'step/start', data: { turn: 1, step: 1 } },
+        { type: 'assistant/chunk', data: { chunk: { type: 'text-delta', text: 'Title: ' } } },
+        { type: 'assistant/chunk', data: { chunk: { type: 'text-delta', text: 'Note' } } },
+      ],
+    })
+    expect(text).toBe('Title: Note')
+  })
+})
