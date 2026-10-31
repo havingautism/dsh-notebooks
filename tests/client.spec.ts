@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { apply } from '../src/client/index.ts'
 import { createNotebooksUiStore, readNotebooksRoute } from '../src/client/ui-store.ts'
 import {
@@ -50,12 +50,10 @@ describe('Notebooks client mount', () => {
         registerSource: vi.fn(() => vi.fn()),
       },
       effect: (callback: () => unknown) => callback(),
-      get: vi.fn((key: string) => {
-        if (key === 'conversationEvents') {
-          return { register: vi.fn(() => vi.fn()) }
-        }
-        return undefined
-      }),
+      uiConversation: {
+        events: { register: vi.fn() },
+      },
+      get: vi.fn(() => undefined),
       inject: (deps: readonly string[], callback: (scope: typeof remoteCtx) => void) => {
         expect(deps).toEqual(['remote.notebooks', 'slots'])
         callback(remoteCtx)
@@ -168,8 +166,7 @@ describe('Notebook cite extraction', () => {
       type: 'user/message',
       data: {
         source: {
-          kind: 'plugin',
-          plugin: '@deepseek-ai/dsh-notebooks',
+          kind: 'notebooks-recall',
           form: 'recall',
           notebookId: 'note-1',
           notebookTitle: 'Renderer notes',

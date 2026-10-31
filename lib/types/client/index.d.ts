@@ -1,5 +1,5 @@
 /** Client mount for the notebook Remote contribution. */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client';
+import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { TypertClientRemote } from '@deepseek-ai/dsh-typert-protocol';
 export type {} from '@deepseek-ai/dsh-notebooks/remote';
 declare module '@deepseek-ai/cordis' {
@@ -8,7 +8,7 @@ declare module '@deepseek-ai/cordis' {
         remote: TypertClientRemote;
     }
 }
-/** Required services: Remote client, slots, locale, sessions, and optional triggers. */
+/** Required services: Remote client, slots, locale, sessions, conversation nodes, and optional triggers. */
 export declare const inject: string[];
 /**
  * Mount the notebook Remote namespace and its global sidebar/overlay surfaces.

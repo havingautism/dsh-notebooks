@@ -1,5 +1,5 @@
 /** Codemini-style notebook picker launched from the composer tool row. */
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client';
+import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type { NotebooksComposerFace } from './client-face.ts';
 type NotebooksComposerButtonProps = PropsRuntime<'conversation.input.left'> & PropsLocale<'notebooks'> & NotebooksComposerFace & {

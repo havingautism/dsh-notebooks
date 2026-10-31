@@ -1,5 +1,5 @@
 /** Conversation node for a clickable notebook badge under citing user bubbles. */
-import type { ConversationNodeDefinition } from '@deepseek-ai/dsh-client-runtime/client';
+import type { ConversationNodeDefinition } from '@deepseek-ai/dsh-client-ui-conversation/client';
 import { NotebookId } from '../types.ts';
 export declare const NOTEBOOKS_PLUGIN_ID = "@deepseek-ai/dsh-notebooks";
 /** Renderer payload for one notebook cite chip. */
@@ -26,8 +26,7 @@ export declare function citeFromMessageEvent(event: {
 export declare const notebookCiteDefinition: ConversationNodeDefinition<NotebookCiteState>;
 /** Notebook recall source fields carried on injected context messages. */
 export interface NotebookRecallSource {
-    readonly kind: 'plugin';
-    readonly plugin: typeof NOTEBOOKS_PLUGIN_ID;
+    readonly kind: 'notebooks-recall';
     readonly form: 'recall';
     readonly notebookId: NotebookId;
     readonly notebookTitle: string;

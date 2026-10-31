@@ -1,6 +1,8 @@
 /** Client mount for the notebook Remote contribution. */
 
-import type { ClientContext, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
@@ -53,8 +55,8 @@ interface ConversationInputHub {
   }
 }
 
-/** Required services: Remote client, slots, locale, sessions, and optional triggers. */
-export const inject = ['remote', 'slots', 'locale', 'sessions', 'inputTriggers']
+/** Required services: Remote client, slots, locale, sessions, conversation nodes, and optional triggers. */
+export const inject = ['remote', 'slots', 'locale', 'sessions', 'inputTriggers', 'uiConversation']
 
 /** Return one successful Remote value or surface the carrier failure. */
 function remoteValue<T>(operation: string, result: RemoteResult<T>): T {
@@ -146,9 +148,7 @@ function registerConversationSurfaces(
   slots: ClientContext['slots'],
   face: () => NotebooksClientFace,
 ): void {
-  const conversationEvents = ctx.get('conversationEvents') as { register(definition: typeof notebookCiteDefinition): () => void } | undefined
-  if (conversationEvents === undefined) return
-  conversationEvents.register(notebookCiteDefinition)
+  ctx.uiConversation.events.register(notebookCiteDefinition)
   slots.inject('conversation.chat.node', () => slots.register({
     name: 'conversation.chat.node',
     key: 'notebook-cite',

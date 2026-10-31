@@ -1,5 +1,5 @@
 /** Composer helpers: insert or clear one notebook reference occurrence. */
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client';
+import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import type { ReferenceInsert, TokenSpan } from '@deepseek-ai/dsh-client-ui-input-trigger/client';
 import type { NotebookMentionCandidate } from '../types.ts';
 interface InputShell {

@@ -1,6 +1,6 @@
 /** Conversation node for a clickable notebook badge under citing user bubbles. */
 
-import type { ConversationNodeDefinition } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ConversationNodeDefinition } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import { parseNotebookMentions } from '../mention.ts'
 import { NotebookId } from '../types.ts'
@@ -41,9 +41,8 @@ function readSourceField(source: unknown, key: string): string | undefined {
   return typeof value === 'string' && value.trim() !== '' ? value : undefined
 }
 
-function citeFromPluginSource(source: unknown, content: readonly ContentBlock[]): NotebookCiteData | null {
-  if (readSourceField(source, 'kind') !== 'plugin') return null
-  if (readSourceField(source, 'plugin') !== NOTEBOOKS_PLUGIN_ID) return null
+function citeFromRecallSource(source: unknown, content: readonly ContentBlock[]): NotebookCiteData | null {
+  if (readSourceField(source, 'kind') !== 'notebooks-recall') return null
   const notebookId = readSourceField(source, 'notebookId')
   const notebookTitle = readSourceField(source, 'notebookTitle')
   if (notebookId !== undefined) {
@@ -80,7 +79,7 @@ export function citeFromMessageEvent(event: {
   const data = messageData(event.data)
   if (data === null) return null
   const content = data.content ?? []
-  return citeFromPluginSource(data.source, content) ?? citeFromUserMessage(content)
+  return citeFromRecallSource(data.source, content) ?? citeFromUserMessage(content)
 }
 
 /** Fold citing notebook context into one anchored chip under the user bubble. */
@@ -108,7 +107,7 @@ export const notebookCiteDefinition: ConversationNodeDefinition<NotebookCiteStat
       kind: 'notebook-cite',
       id: context.id,
       target: 'chat',
-      anchorSeq: sourceKind === 'plugin' ? seq - 0.1 : seq + 0.1,
+      anchorSeq: sourceKind === 'notebooks-recall' ? seq - 0.1 : seq + 0.1,
       location: context.start?.location ?? { kind: 'unresolved' },
       visibility: 'visible',
       data: { notebookId: context.state.notebookId, title: context.state.title },
@@ -118,8 +117,7 @@ export const notebookCiteDefinition: ConversationNodeDefinition<NotebookCiteStat
 
 /** Notebook recall source fields carried on injected context messages. */
 export interface NotebookRecallSource {
-  readonly kind: 'plugin'
-  readonly plugin: typeof NOTEBOOKS_PLUGIN_ID
+  readonly kind: 'notebooks-recall'
   readonly form: 'recall'
   readonly notebookId: NotebookId
   readonly notebookTitle: string

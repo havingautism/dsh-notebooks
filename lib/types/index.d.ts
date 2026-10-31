@@ -6,6 +6,7 @@
 import { Context, Service } from '@deepseek-ai/cordis';
 import s from '@deepseek-ai/schemastery';
 import { TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
+import { NotebookId } from './types.ts';
 import type { NotebookAddSourceRequest, NotebookArtifactRequest, NotebookCandidateRequest, NotebookCandidateResult, NotebookCreateRequest, NotebookDeleteRequest, NotebookDeleteResult, NotebookEntry, NotebookGetRequest, NotebookGenerateStudioRequest, NotebookListRequest, NotebookListResult, NotebookPutRequest, NotebookRemoveSourceRequest, NotebookRemoveSourceResult, NotebookSaveChatAnswerRequest, NotebookSourceSelectionRequest, NotebookSummarizeRequest, NotebookSummaryRequest } from './types.ts';
 export type * from './types.ts';
 export { NotebookId, NotebookSourceId } from './types.ts';
@@ -32,6 +33,18 @@ export interface Config {
 declare module '@deepseek-ai/cordis' {
     interface Context {
         notebooks: NotebooksService;
+    }
+}
+/** Durable recall envelope injected beside a user message that @-mentions a notebook. */
+export interface NotebooksRecallSource {
+    readonly kind: 'notebooks-recall';
+    readonly form: 'recall';
+    readonly notebookId: NotebookId;
+    readonly notebookTitle: string;
+}
+declare module '@deepseek-ai/dsh-llm' {
+    interface MessageSourceMap {
+        'notebooks-recall': NotebooksRecallSource;
     }
 }
 /** Durable notebook service. */

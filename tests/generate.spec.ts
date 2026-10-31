@@ -102,22 +102,17 @@ describe('assistant session text', () => {
         { role: 'user', content: [{ type: 'text', text: 'summarize' }] },
         { role: 'assistant', content: [{ type: 'text', text: 'Title: 📝 Note\nSummary:\nBody' }] },
       ],
-      events: [],
     })
     expect(text).toContain('Summary:')
   })
 
   it('reads in-flight chunks when deriveMessages is still empty', async () => {
     const { assistantTextFromSession } = await import('../src/assistant-text.ts')
-    const text = assistantTextFromSession({
-      id: 's1',
-      deriveMessages: () => [],
-      events: [
-        { type: 'step/start', data: { turn: 1, step: 1 } },
-        { type: 'assistant/chunk', data: { chunk: { type: 'text-delta', text: 'Title: ' } } },
-        { type: 'assistant/chunk', data: { chunk: { type: 'text-delta', text: 'Note' } } },
-      ],
-    })
+    const text = assistantTextFromSession({ id: 's1', deriveMessages: () => [] }, [
+      { type: 'step/start', data: { turn: 1, step: 1 } },
+      { type: 'assistant/chunk', data: { chunk: { type: 'text-delta', text: 'Title: ' } } },
+      { type: 'assistant/chunk', data: { chunk: { type: 'text-delta', text: 'Note' } } },
+    ])
     expect(text).toBe('Title: Note')
   })
 
@@ -131,7 +126,6 @@ describe('assistant session text', () => {
           { type: 'text', text: '```mermaid\nmindmap\n  Root\n```' },
         ] },
       ],
-      events: [],
     })
     expect(text).toContain('```mermaid')
     expect(text).not.toContain('The user wants')

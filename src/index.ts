@@ -11,7 +11,7 @@ import s from '@deepseek-ai/schemastery'
 import type { AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { PreStepDecision } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
-import type {} from '@deepseek-ai/dsh-agent-presets'
+import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import { createUserMessage, freezeMessage } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, UserMessage } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
@@ -76,6 +76,20 @@ interface WebLike {
 
 declare module '@deepseek-ai/cordis' {
   interface Context { notebooks: NotebooksService }
+}
+
+/** Durable recall envelope injected beside a user message that @-mentions a notebook. */
+export interface NotebooksRecallSource {
+  readonly kind: 'notebooks-recall'
+  readonly form: 'recall'
+  readonly notebookId: NotebookId
+  readonly notebookTitle: string
+}
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'notebooks-recall': NotebooksRecallSource
+  }
 }
 
 const ENTRY_SCHEMA = {
@@ -423,8 +437,7 @@ export class NotebooksService extends TypertRemoteService {
       const context = createUserMessage({
         content: [{ type: 'text', text: buildAskContext(entry, summary) }],
         source: {
-          kind: 'plugin',
-          plugin: '@deepseek-ai/dsh-notebooks',
+          kind: 'notebooks-recall',
           form: 'recall',
           notebookId: entry.id,
           notebookTitle: entry.title || entry.id,

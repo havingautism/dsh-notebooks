@@ -1,7 +1,7 @@
 /** Sidebar foot control that opens the global notebook workspace. */
 
 import { useSyncExternalStore } from 'react'
-import { IconListPenOutline16 as IconNote } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconListPenOutlineMedium as IconNote } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { NotebooksKey } from './locales.ts'

@@ -1,4 +1,4 @@
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client';
+import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import type { NotebookMentionCandidate } from '../types.ts';
 import type { NotebooksViewApi } from './view-types.ts';
 import type { NotebooksUiStore } from './ui-store.ts';

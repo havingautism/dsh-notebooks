@@ -1,11 +1,11 @@
 /** Selected notebook chip above the composer card. */
 
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import {
-  IconCloseOutline16 as IconX, IconListPenOutline16 as IconNote,
-  IconRightUpOutline14 as IconExternalLink,
+  IconCloseOutlineMedium as IconX, IconListPenOutlineMedium as IconNote,
+  IconRightUpOutlineMedium as IconExternalLink,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { parseNotebookMentions } from '../mention.ts'
 import type { NotebooksComposerFace } from './client-face.ts'

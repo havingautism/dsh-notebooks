@@ -4,6 +4,7 @@
     "rootDir": "src",
     "outDir": "lib/types",
     "tsBuildInfoFile": "lib/tsconfig.client.tsbuildinfo",
+    "types": ["client-build-environment", "react", "react-dom"],
     "typeRoots": [
       "../deepseek-harness/node_modules/@types",
       "../deepseek-harness/scripts/types"
@@ -32,14 +33,13 @@
   ],
   "references": [
     { "path": "../deepseek-harness/vendor/cordis" },
-    { "path": "../deepseek-harness/packages/client/locale" },
-    { "path": "../deepseek-harness/packages/client/runtime" },
+    { "path": "../deepseek-harness/packages/client/locale/tsconfig.client.json" },
     { "path": "../deepseek-harness/packages/client/ui-layout" },
     { "path": "../deepseek-harness/packages/client/ui-sidebar" },
     { "path": "../deepseek-harness/packages/client/ui-primitives" },
     { "path": "../deepseek-harness/packages/client/ui-slots" },
     { "path": "../deepseek-harness/packages/client/ui-input-trigger" },
-    { "path": "../deepseek-harness/packages/client/ui-conversation" },
+    { "path": "../deepseek-harness/packages/client/ui-conversation/tsconfig.client.json" },
     { "path": "../deepseek-harness/packages/api/remotes/tsconfig.client.json" },
     { "path": "../deepseek-harness/packages/typert/protocol" },
     { "path": "./tsconfig.host.json" }

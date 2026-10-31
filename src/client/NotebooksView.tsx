@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import {
-  IconChevronLeftOutline14 as IconArrowLeft, IconCloseOutline16 as IconX,
-  IconDataOutline16 as IconLayoutGrid, IconListPenOutline16 as IconNote,
-  IconLoadingOutline16 as IconLoading, IconPlusOutline16 as IconPlus,
-  IconRightUpOutline14 as IconExternalLink, MarkdownText,
+  IconChevronLeftOutlineMedium as IconArrowLeft, IconCloseOutlineMedium as IconX,
+  IconDataOutlineMedium as IconLayoutGrid, IconListPenOutlineMedium as IconNote,
+  IconLoadingOutlineMedium as IconLoading, IconPlusOutlineMedium as IconPlus,
+  IconRightUpOutlineMedium as IconExternalLink, MarkdownText, type MarkdownLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { NotebookId, type NotebookArtifactKind, type NotebookCreateRequest, type NotebookEntry, type NotebookSource } from '../types.ts'
 import { parseMindmapTree } from '../studio-mermaid.ts'
@@ -19,6 +19,21 @@ type Filter = 'all' | 'manual' | 'url' | 'document'
 type ViewMode = 'grid' | 'list'
 type MobilePane = 'sources' | 'summary' | 'studio'
 type Translate = (key: NotebooksKey, params?: Record<string, unknown>) => string
+
+function markdownLabels(t: Translate): MarkdownLabels {
+  return {
+    code: {
+      copyLabel: t('markdown.copy'),
+      copiedLabel: t('markdown.copied'),
+      toolbarLabels: {
+        codeLabel: t('markdown.code'),
+        wrapLabel: t('markdown.wrap'),
+        unwrapLabel: t('markdown.unwrap'),
+      },
+    },
+    footnotes: t('markdown.footnotes'),
+  }
+}
 type PendingDelete = { id: NotebookEntry['id']; title: string }
 type ComposerDocument = { name: string; mimeType: string; content: string }
 
@@ -292,6 +307,7 @@ function DeleteConfirmDialog({ pending, busy, t, onCancel, onConfirm }: { pendin
 }
 
 function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, setError }: { entry: NotebookEntry; api: NotebooksViewApi; t: Translate; onChange: (entry: NotebookEntry) => void; onBack: () => void; onDelete: () => void; error: string | null; setError: (value: string | null) => void }) {
+  const labels = useMemo(() => markdownLabels(t), [t])
   const [sourceDraft, setSourceDraft] = useState('')
   const [studioKind, setStudioKind] = useState<NotebookArtifactKind>('mindmap')
   const [viewingSourceId, setViewingSourceId] = useState<string | null>(null)
@@ -403,7 +419,7 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
           {jobFailed ? <div className={css.jobError} role="alert">{t('overview.failed', { error: job.errorText || t('overview.empty') })}</div> : null}
           {summaryText.trim() === ''
             ? <div className={css.emptyPane}>{summarizing ? null : t('overview.empty')}</div>
-            : <article className={css.markdownDocument} data-streaming={summarizing && !fetching || undefined}><MarkdownText text={summaryText} streaming={summarizing && !fetching} /></article>}
+            : <article className={css.markdownDocument} data-streaming={summarizing && !fetching || undefined}><MarkdownText text={summaryText} streaming={summarizing && !fetching} labels={labels} /></article>}
         </> : <>
           <div className={css.paneHeader}>
             <div><h3>{t('source.original')}</h3><p>{viewing.name}</p></div>
@@ -414,7 +430,7 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
           </div>
           {viewing.content.trim() === ''
             ? <div className={css.emptyPane}>{viewing.status === 'pending_fetch' ? t('sources.pending') : t('source.empty')}</div>
-            : <article className={css.markdownDocument}><MarkdownText text={viewing.content} /></article>}
+            : <article className={css.markdownDocument}><MarkdownText text={viewing.content} labels={labels} /></article>}
         </>}
       </main>
       <aside className={css.studioPane} data-mobile={mobilePane === 'studio' || undefined}>
@@ -437,7 +453,7 @@ function NotebookWorkspace({ entry, api, t, onChange, onBack, onDelete, error, s
               {mindmapReady ? <button className={css.ghostButton} type="button" onClick={() => { setExpandMindmap(true) }}>{t('studio.expand')}</button> : null}
               {studioKind === 'mindmap'
                 ? <MermaidMindmap text={studioText} invalidLabel={t('studio.mindmapInvalid')} />
-                : <article className={css.markdownDocument}><MarkdownText text={studioText} streaming={generatingStudio} /></article>}
+                : <article className={css.markdownDocument}><MarkdownText text={studioText} streaming={generatingStudio} labels={labels} /></article>}
             </div>}
         <button className={css.studioGenerate} type="button" disabled={busy || generatingStudio || summarizing} onClick={() => { void run(() => api.generateStudio(entry.id, studioKind)) }}>
           {generatingStudio ? <IconLoading className={css.spinner} size={14} /> : <IconPlus size={14} />}

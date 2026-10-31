@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import {
-  IconListPenOutline16 as IconNote, IconSearchOutline16 as IconSearch,
-  IconRightUpOutline14 as IconExternalLink,
+  IconListPenOutlineMedium as IconNote, IconSearchOutlineMedium as IconSearch,
+  IconRightUpOutlineMedium as IconExternalLink,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { NotebookMentionCandidate } from '../types.ts'
 import type { NotebooksComposerFace } from './client-face.ts'

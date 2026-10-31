@@ -105,6 +105,12 @@ export type NotebooksKey =
   | 'overlay.crashTitle'
   | 'overlay.crashHint'
   | 'overlay.crashBack'
+  | 'markdown.copy'
+  | 'markdown.copied'
+  | 'markdown.code'
+  | 'markdown.wrap'
+  | 'markdown.unwrap'
+  | 'markdown.footnotes'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -211,6 +217,12 @@ export const zh: Record<NotebooksKey, string> = {
   'overlay.crashTitle': '随手记无法显示',
   'overlay.crashHint': '工作区遇到渲染错误。可以返回笔记列表继续。',
   'overlay.crashBack': '返回列表',
+  'markdown.copy': '复制',
+  'markdown.copied': '已复制',
+  'markdown.code': '代码',
+  'markdown.wrap': '自动换行',
+  'markdown.unwrap': '取消换行',
+  'markdown.footnotes': '脚注',
 }
 
 /** English dictionary. */
@@ -311,4 +323,10 @@ export const en: Record<NotebooksKey, string> = {
   'overlay.crashTitle': 'Notebooks failed to render',
   'overlay.crashHint': 'The workspace hit a render error. You can return to the library.',
   'overlay.crashBack': 'Back to library',
+  'markdown.copy': 'Copy',
+  'markdown.copied': 'Copied',
+  'markdown.code': 'Code',
+  'markdown.wrap': 'Wrap',
+  'markdown.unwrap': 'Unwrap',
+  'markdown.footnotes': 'Footnotes',
 }

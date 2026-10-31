@@ -2,11 +2,12 @@
 
 import type { AgentHandle } from '@deepseek-ai/dsh-agent'
 
-type SessionLike = {
+type MessagesSessionLike = {
   readonly id: { toString?(): string } | string
   deriveMessages(): ReadonlyArray<{ role?: string; content?: unknown }>
-  readonly events: ReadonlyArray<{ type: string; data?: unknown }>
 }
+
+type SessionEvent = { type: string; data?: unknown }
 
 /** Flatten text out of a message content payload. */
 export function messageText(content: unknown): string {
@@ -21,7 +22,7 @@ export function messageText(content: unknown): string {
 }
 
 /** Latest assembled assistant prose, or in-flight stream chunks if the message is not on the surface yet. */
-export function assistantTextFromSession(session: SessionLike): string {
+export function assistantTextFromSession(session: MessagesSessionLike, events: ReadonlyArray<SessionEvent> = []): string {
   const messages = session.deriveMessages()
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index]!
@@ -29,7 +30,7 @@ export function assistantTextFromSession(session: SessionLike): string {
     const text = messageText(message.content)
     if (text !== '') return text
   }
-  return inFlightAssistantText(session.events)
+  return inFlightAssistantText(events)
 }
 
 /** Latest assistant text for a live generation Agent. */
@@ -37,7 +38,7 @@ export function lastAssistantText(handle: AgentHandle): string {
   return assistantTextFromSession(handle.agent.session)
 }
 
-function inFlightAssistantText(events: SessionLike['events']): string {
+function inFlightAssistantText(events: ReadonlyArray<SessionEvent>): string {
   let parts: string[] = []
   for (const event of events) {
     if (event.type === 'step/start') parts = []
@@ -54,7 +55,7 @@ function inFlightAssistantText(events: SessionLike['events']): string {
   return parts.join('')
 }
 
-function sessionIdOf(value: SessionLike['id']): string {
+function sessionIdOf(value: MessagesSessionLike['id']): string {
   return typeof value === 'string' ? value : String(value)
 }
 
@@ -76,7 +77,7 @@ export function watchDraft(handle: AgentHandle, onDraft: (text: string) => void,
     if (timer !== undefined) return
     timer = setTimeout(() => { timer = undefined; emit() }, 80)
   }
-  const applyEvent = (event: { type: string; data?: unknown }) => {
+  const applyEvent = (event: SessionEvent) => {
     if (event.type === 'assistant/chunk') {
       const chunk = (event.data as { chunk?: { type?: string; text?: string } } | undefined)?.chunk
       if (chunk?.type === 'text-delta' && chunk.text) {
@@ -93,7 +94,7 @@ export function watchDraft(handle: AgentHandle, onDraft: (text: string) => void,
       }
     }
   }
-  const offEvent = handle.agent.ctx.on('session/event', (live: { id?: SessionLike['id'] }, event: { type: string; data?: unknown }) => {
+  const offEvent = handle.agent.ctx.on('session/event', (live: { id?: MessagesSessionLike['id'] }, event: SessionEvent) => {
     if (sessionIdOf(live.id ?? '') !== id) return
     applyEvent(event)
   })

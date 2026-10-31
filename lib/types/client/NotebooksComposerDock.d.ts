@@ -1,5 +1,5 @@
 /** Selected notebook chip above the composer card. */
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client';
+import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type { NotebooksComposerFace } from './client-face.ts';
 type NotebooksComposerDockProps = PropsRuntime<'conversation.input.dock'> & PropsLocale<'notebooks'> & NotebooksComposerFace & {

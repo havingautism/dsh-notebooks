@@ -3,7 +3,7 @@
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import {
-  IconListPenOutline16 as IconNote, IconRightUpOutline14 as IconExternalLink,
+  IconListPenOutlineMedium as IconNote, IconRightUpOutlineMedium as IconExternalLink,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { NotebooksKey } from './locales.ts'
 import type { NotebooksClientFace } from './client-face.ts'
