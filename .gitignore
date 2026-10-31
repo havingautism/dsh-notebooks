@@ -1,4 +1,5 @@
 node_modules/
+dist/
 # npm pack 本地测试产物（scoped 包名会变成 deepseek-ai-dsh-notebooks-<version>.tgz）
 *.tgz
 deepseek-ai-dsh-notebooks-*.tgz
